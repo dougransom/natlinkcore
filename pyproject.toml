@@ -28,6 +28,10 @@ dependencies= [
 test = [
     "pytest >=7.1.2",
 ]
+test_extras = [
+    "vocola2 >= 3.1.4",
+    "unimacro >= 4.1.3"
+]
 dev = [
     "pyenvutils",
 ] 
