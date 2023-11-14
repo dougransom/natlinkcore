@@ -3,7 +3,7 @@
 import os
 import configparser
 import pytest
-from natlinkcore.readwritefile import ReadWriteFile
+from natlinkcore.readwritefile import ReadWriteFile, readFile, writeFile
 from pathlib import Path
 
 thisFile = __file__
@@ -31,6 +31,7 @@ def test_only_write_file(tmp_path):
  #   newFile = join(testDir, 'output-newfile.txt')
  #   if isfile(newFile):
  #       os.unlink(newFile)
+ # via a class method rwFile:
     newFile= testDir/'output-newfile.txt'
     rwfile = ReadWriteFile()
     text = ''
@@ -43,6 +44,26 @@ def test_only_write_file(tmp_path):
     assert rwfile.encoding == 'ascii'
     assert rwfile.bom == ''
     assert text == ''
+
+def test_only_write_file_function(tmp_path):
+    print(f"Temp path: {tmp_path}")
+    testDir = tmp_path / testFolderName
+    testDir.mkdir()
+
+ #   join, isfile = os.path.join, os.path.isfile
+ #   newFile = join(testDir, 'output-newfile.txt')
+ #   if isfile(newFile):
+ #       os.unlink(newFile)
+ # via a class method rwFile:
+    newFile= testDir/'output-newfile.txt'
+    text = ''
+    writeFile(newFile, text)
+    assert open(newFile, 'rb').read() == b''
+ 
+    # read back empty file via function:
+    text = readFile(newFile)
+    assert text == ''
+    
     
 def test_accented_characters_write_file(tmp_path):
 #    join, isfile = os.path.join, os.path.isfile
