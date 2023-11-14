@@ -1,10 +1,10 @@
 
-#pylint:disable= C0114, C0116, R1732
+#pylint:disable= C0114, C0116, R1732, W0621
 import os
 import configparser
+from pathlib import Path
 import pytest
 from natlinkcore.readwritefile import ReadWriteFile, readFile, writeFile
-from pathlib import Path
 
 thisFile = __file__
 thisDir, Filename = os.path.split(thisFile)
@@ -51,18 +51,41 @@ def test_only_write_file_function(tmp_path):
     testDir.mkdir()
 
  #   join, isfile = os.path.join, os.path.isfile
- #   newFile = join(testDir, 'output-newfile.txt')
+ #   newFile = join(testDir, 'outit'sput-newfile.txt')
  #   if isfile(newFile):
  #       os.unlink(newFile)
  # via a class method rwFile:
     newFile= testDir/'output-newfile.txt'
-    text = ''
+    text = 'abc'
     writeFile(newFile, text)
-    assert open(newFile, 'rb').read() == b''
- 
+    assert open(newFile, 'rb').read() == b'abc'
+
     # read back empty file via function:
     text = readFile(newFile)
-    assert text == ''
+    assert text == 'abc'
+
+def test_only_write_file_function_encoding(tmp_path):
+    print(f"Temp path: {tmp_path}")
+    testDir = tmp_path / testFolderName
+    testDir.mkdir()
+
+ # via a class method rwFile:
+    newFile= testDir/'output-newfile-utf.txt'
+    text = 'caf\xc3\xa9'
+    print(f'text, utf?: {text}')
+    writeFile(newFile, text)
+    assert open(newFile, 'rb').read() == b'caf\xc3\xa9'
+
+    # read back empty file via function:
+    text = readFile(newFile)
+    
+    # upside down question mark, latin-1
+    assert text == 'café' 
+    rwfile = ReadWriteFile()
+    text = rwfile.readAnything(newFile)
+    assert text == 'café' 
+    assert rwfile.bom == ''
+    assert rwfile.encoding == 'utf-8'
     
     
 def test_accented_characters_write_file(tmp_path):
@@ -72,19 +95,19 @@ def test_accented_characters_write_file(tmp_path):
  #   newFile = join(testDir, 'output-accented.txt')
     testDir = tmp_path / testFolderName
     testDir.mkdir()
-    newFile = testDir/"outut-accented.txt"
+    newFile = testDir/"output-accented.txt"
     text = 'caf\xe9'
+
     rwfile = ReadWriteFile(encodings=['ascii'])  # optional encoding
-    # this is with default errors='xmlcharrefreplace':
-    rwfile.writeAnything(newFile, text)
-    testTextBinary = open(newFile, 'rb').read()
-    wanted = b'caf&#233;'
-    assert testTextBinary == wanted
-    # same, default is 'xmlcharrefreplace':
     rwfile.writeAnything(newFile, text, errors='xmlcharrefreplace')
     testTextBinary = open(newFile, 'rb').read()
     assert testTextBinary == b'caf&#233;'
-    assert len(testTextBinary) == 9
+
+    text = 'caf\xe9'
+    newFile = testDir/"output-accented-error.txt"
+    # with pytest.raises(Exception) as excinfo:
+    # # no default errors any more... should raise error:
+    rwfile.writeAnything(newFile, text)
 
     text_back = rwfile.readAnything(newFile)
     assert text_back == 'caf&#233;'
@@ -131,7 +154,7 @@ def test_latin1_cp1252_write_file(tmp_path):
     # (as long as the "fallback" is utf-8, all write files should go well!)
 
 def test_read_write_file(tmp_path):
-    listdir, join, splitext = os.listdir, os.path.join, os.path.splitext
+    listdir, splitext = os.listdir, os.path.splitext
     testDir = tmp_path / testFolderName
     testDir.mkdir()
     mock_files_list=listdir(mock_readwritefiledir)

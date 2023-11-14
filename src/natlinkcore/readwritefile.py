@@ -21,9 +21,9 @@ The "bom mark" is sometimes/especially the case with the ini files of the Dragon
     Config.read_string(self.config_text)
     ```
 
-Quintijn Hoogenboom, 2018, March 2022
+Quintijn Hoogenboom, 2018, March 2022/November 2023
 """
-#pylint:disable=R0912
+#pylint:disable=R0912, C0209
 import os
 import sys
 
@@ -56,9 +56,9 @@ class ReadWriteFile:
 
     
     def readAnything(self, input_path, encoding=None):
-        """take any file and decode to (unocode) string
+        """take any file and decode to a str
         
-        works best if filetype is NOT given.
+        works best if encoding is NOT given.
     
         Try subsequently the encodings, unless overriden by
         the encoding variable (str of list of strings)
@@ -110,43 +110,47 @@ class ReadWriteFile:
         errors can also be 'ignore' or 'replace'
         Note: with 'utf-8' as second encoding, there should be no errors!
         """
-        if encoding:
-            if isinstance(encoding, str):
-                self.encoding = encoding
-            elif isinstance(encoding, (list, tuple)):
-                self.encodings = encoding
-                self.encoding = encoding[0]
-            else:
-                raise TypeError('readwritefile, writeAnything: unexpected type of encoding: {encoding} (type: {type(encoding)})')
-        errors = errors or 'xmlcharrefreplace'
-        assert errors in ('ignore', 'replace', 'xmlcharrefreplace')
+        errors = errors or 'strict'
+        # if encoding:
+        #     if isinstance(encoding, str):
+        #         self.encoding = encoding
+        #     elif isinstance(encoding, (list, tuple)):
+        #         self.encodings = encoding
+        #         self.encoding = encoding[0]
+        #     else:
+                # raise TypeError('readwritefile, writeAnything: unexpected type of encoding: {encoding} (type: {type(encoding)})')
+        # errors = errors or 'xmlcharrefreplace'
+        assert errors in ('strict', 'ignore', 'replace', 'xmlcharrefreplace')
         if isinstance(content, (list, tuple)):
             content = '\n'.join(content)
     
         if not isinstance(content, str):
             raise TypeError("writeAnything, content should be str, not %s (%s)"% (type(content), filepath))
 
-        if self.encoding != 'ascii':
-            i = self.encodings.index(self.encoding)
-            # take 'ascii' and next encoding (will be 'utf-8')
+        if not encoding and len(self.encodings) == 1:
+            encoding = self.encodings[0]
+
+        if encoding:
             try:
-                firstEncoding, secondEncoding = self.encodings[i:i+2]
-            except ValueError:
-                firstEncoding, secondEncoding = self.encoding, None
+                tRaw = content.encode(encoding=encoding, errors=errors)
+            except Exception as exc:
+                msg = 'readwritefile.writeAnything, cannot encode string to raw string for writing to file %s (encoding: %s)'% (filepath, encoding)
+                msg += '\nexc: %s'% repr(exc)
+                raise UnicodeEncodeError(msg) from exc
+       
         else:
-            # if encoding specified, try only this encoding:
-            firstEncoding, secondEncoding = self.encoding, None
-    
-        try:
-            tRaw = content.encode(encoding=firstEncoding)
-        except UnicodeEncodeError:
-            if secondEncoding:
+            for enc in self.encodings:
+
                 try:
-                    tRaw = content.encode(encoding=secondEncoding)
-                except UnicodeEncodeError:
-                    tRaw = content.encode(encoding=firstEncoding, errors=errors)
-            else:
-                tRaw = content.encode(encoding=firstEncoding, errors=errors)
+                    tRaw = content.encode(encoding=enc)
+                except UnicodeEncodeError as exc:
+                    if enc == self.encodings[-1]:
+                        if errors:
+                            tRaw = content.encode(encoding=enc, errors=errors)
+                        else:
+                            message = ['readwritefile.writeAnything, cannot encode string to raw string for writing to file %s (encodings: %s)'%(filepath, self.encodings),
+                                       '\tconsider to add "errors=ignore", or "errors=xmlcharrefreplace" to the call']
+                            raise UnicodeEncodeError('\n'.join(message)) from exc
             
         if sys.platform == 'win32':
             tRaw = tRaw.replace(b'\n', b'\r\n')
@@ -155,11 +159,32 @@ class ReadWriteFile:
         if self.bom:
             # print('add bom for tRaw')
             tRaw = self.bom + tRaw 
-        outfile = open(filepath, 'wb')
+        with open(filepath, 'wb') as out:  
         # what difference does a bytearray make? (QH)
-        outfile.write(bytearray(tRaw))
-        outfile.close()
+            out.write(bytearray(tRaw))
+    readFile = readAnything
+    writeFile = writeAnything
     
+### direct callable functions, in case no read and write with same bom and encodings is needed:
+def readFile(filepath, encoding=None):
+    """direct function, returns the str contents of any file type
+    
+    if no other parameters are needed, you can bypass the call to ReadWriteFile
+    """
+    rwfile = ReadWriteFile()
+    contents = rwfile.readAnything(filepath, encoding=encoding)
+    return contents
+
+
+  # def writeAnything(self, filepath, content, encoding=None, errors=None):
+def writeFile(filepath, content, encoding=None, errors=None):
+    """direct function, returns the str contents of any file type
+    
+    if no other parameters are needed, you can bypass the call to ReadWriteFile
+    """
+    rwfile = ReadWriteFile()
+    rwfile.writeAnything(filepath, content, encoding=encoding, errors=errors)
+
 def fixCrLf(tRaw):
     """replace crlf into lf
     """
