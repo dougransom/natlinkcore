@@ -103,11 +103,6 @@ def test_accented_characters_write_file(tmp_path):
     testTextBinary = open(newFile, 'rb').read()
     assert testTextBinary == b'caf&#233;'
 
-    text = 'caf\xe9'
-    newFile = testDir/"output-accented-error.txt"
-    # with pytest.raises(Exception) as excinfo:
-    # # no default errors any more... should raise error:
-    rwfile.writeAnything(newFile, text)
 
     text_back = rwfile.readAnything(newFile)
     assert text_back == 'caf&#233;'
@@ -127,6 +122,15 @@ def test_accented_characters_write_file(tmp_path):
     text_back = rwfile_utf.readAnything(newFile)
     assert text == text_back
 
+    ## should raise an error:
+    text = 'caf\xe9'
+    newFile = testDir/"output-accented-error.txt"
+    # with pytest.raises(Exception) as excinfo:
+    # # no default errors any more... should raise error:
+    with pytest.raises(UnicodeEncodeError):
+        rwfile.writeAnything(newFile, text)
+
+
 def test_other_encodings_write_file(tmp_path):
      
     testDir = tmp_path / testFolderName
@@ -137,17 +141,14 @@ def test_other_encodings_write_file(tmp_path):
     rwfile = ReadWriteFile(encodings=['latin1'])  # optional encoding
     text = rwfile.readAnything(oldFile)
     assert text == 'latin1 café'
-    
-    
-    
 
 
-def test_latin1_cp1252_write_file(tmp_path):
-    testDir = tmp_path / testFolderName
-    testDir.mkdir()
-    _newFile = testDir/ 'latin1.txt'
-    _newFile = testDir/'cp1252.txt'
-    assert False, "QH TODO"
+# def test_latin1_cp1252_write_file(tmp_path):
+#     testDir = tmp_path / testFolderName
+#     testDir.mkdir()
+#     _newFile = testDir/ 'latin1.txt'
+#     _newFile = testDir/'cp1252.txt'
+#     assert False, "QH TODO"
 
     # TODO (QH) to be done, these encodings do not take all characters,
     # and need special attention.
