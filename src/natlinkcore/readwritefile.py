@@ -131,12 +131,16 @@ class ReadWriteFile:
             encoding = self.encodings[0]
 
         if encoding:
-            try:
-                tRaw = content.encode(encoding=encoding, errors=errors)
-            except Exception as exc:
-                msg = 'readwritefile.writeAnything, cannot encode string to raw string for writing to file %s (encoding: %s)'% (filepath, encoding)
-                msg += '\nexc: %s'% repr(exc)
-                raise UnicodeEncodeError(msg) from exc
+
+            tRaw = content.encode(encoding=encoding, errors=errors)
+
+
+            # TODO Doug or QH
+            # try:
+            #     tRaw = content.encode(encoding=encoding, errors=errors)
+            # except UnicodeEncodeError as exc:
+            #     msg =  f'readwritefile.writeAnything, cannot encode string to raw string (encoding: {encoding}, errors: {errors}) for writing to file\n\t{filepath}(encoding: %s)'
+            #     raise UnicodeEncodeError(msg) from exc
        
         else:
             for enc in self.encodings:
