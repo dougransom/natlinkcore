@@ -159,7 +159,7 @@ class ReadWriteFile:
         if self.bom:
             # print('add bom for tRaw')
             tRaw = self.bom + tRaw 
-        with open(filepath, 'wb') as out:  
+        with open(str(filepath), 'wb') as out:  
         # what difference does a bytearray make? (QH)
             out.write(bytearray(tRaw))
     readFile = readAnything
@@ -184,6 +184,10 @@ def writeFile(filepath, content, encoding=None, errors=None):
     """
     rwfile = ReadWriteFile()
     rwfile.writeAnything(filepath, content, encoding=encoding, errors=errors)
+
+
+readAnything = readFile
+writeAnything = writeFile
 
 def fixCrLf(tRaw):
     """replace crlf into lf

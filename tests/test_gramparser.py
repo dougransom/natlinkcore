@@ -3,6 +3,11 @@
 import pytest
 
 from natlinkcore.gramparser import GramParser, packGrammar, GrammarSyntaxError, splitApartLines
+from natlinkcore import gramparser
+
+class TestError(Exception):
+    pass
+
 
 
 def test_packGrammar():
@@ -145,3 +150,39 @@ def test_splitApartLines_complex_indentation():
     expected = ['Initial line', 'This is line two indented', '    This is line three extra indented',
                 'Second string no indent', 'But second line indented four']
     assert actual == expected
+
+
+def test_grammarerrors():
+    """test gramparser errors from unittestNalink
+    """
+    def testGrammarError(exceptionType,gramSpec):
+        try:
+            parser = GramParser([gramSpec])
+            parser.doParse()
+            parser.checkForErrors()
+        except exceptionType:
+            return
+        raise TestError('Expecting an exception parsing grammar '+gramSpec)
+
+    # 
+    testGrammarError(gramparser.GrammarSyntaxError,'badrule;')
+    testGrammarError(gramparser.GrammarSyntaxError,'badrule = hello;')
+    testGrammarError(gramparser.GrammarSyntaxError,'= hello;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> error = hello;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello')
+    testGrammarError(gramparser.LexicalError,'<rule exported = hello;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = ;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = [] hello;')
+    testGrammarError(gramparser.GrammarError,'<rule> = hello;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello ];')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello {};')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello <>;')
+    testGrammarError(gramparser.GrammarError,'<rule> exported = <other>;')
+    testGrammarError(gramparser.SymbolError,'<rule> exported = one; <rule> exported = two;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello | | goodbye;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello ( ) goodbye;')
+    testGrammarError(gramparser.GrammarSyntaxError,'<rule> exported = hello "" goodbye;')
+    
+
+if __name__ == "__main__":
+    pytest.main(['test_gramparser.py'])
