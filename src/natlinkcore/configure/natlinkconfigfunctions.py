@@ -24,7 +24,7 @@ from pprint import pformat
 from pathlib import Path
 import configparser
 import logging
-
+import pyuac
 try:
     from natlinkcore import natlinkstatus
 except OSError:
@@ -42,7 +42,12 @@ def do_pip(*args):
     Run a pip command with args. 
     Diagnostic logging.3
     """
- 
+    # run pip in elevated mode:
+    if not pyuac.isUserAdmin():
+        pyuac.runAsAdmin()
+        
+    if pyuac.isUserAdmin():
+        print('continue in Admin (elevated) mode...')
 
     command = [sys.executable,"-m", "pip"] + list(args)
     logging.info(f"command:  {command} ")
