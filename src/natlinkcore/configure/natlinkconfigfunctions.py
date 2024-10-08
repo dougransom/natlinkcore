@@ -233,11 +233,22 @@ class NatlinkConfig:
         nice_dir_path = self.prefix_home(dir_path)
         nice_dir_path = nice_dir_path.replace('/', '\\')        
         self.config_set(section, option, nice_dir_path)
+        dir_path = dir_path.strip()
+        directory = createIfNotThere(dir_path, level_up=1)
+        if not (directory and Path(directory).is_dir()):
+            logging.warning(f'Cannot set directory "{option}", the given path is invalid: "{directory}" ("{dir_path}")')
+        
         self.config_remove('previous settings', option)
-        if section == 'directories':
-            logging.info(f'Set option "{option}" to "{dir_path}"')
+        if nice_dir_path == dir_path:
+            if section == 'directories':
+                logging.info(f'Set option "{option}" to "{dir_path}"')
+            else:
+                logging.info(f'Set in section "{section}", option "{option}" to "{dir_path}"')
         else:
-            logging.info(f'Set in section "{section}", option "{option}" to "{dir_path}"')
+            if section == 'directories':
+                logging.info(f'Set option "{option}" to "{nice_dir_path}" (expanding to "{dir_path}")')
+            else:
+                logging.info(f'Set in section "{section}", option "{option}" to "{nice_dir_path}" (expanding to "{dir_path}")')
         return
         
     def clearDirectory(self, option, section=None):
@@ -442,7 +453,10 @@ class NatlinkConfig:
         if not vocola_user_dir:
             return
         # vocGrammarsDir = self.status.getVocolaGrammarsDirectory()
-        vocGrammarsDir = r'natlink_settings\vocolagrammars'
+        vocGrammarsDir = config.expand_path(r'natlink_settingsdir\vocolagrammars')
+        if not vocGrammarsDir:
+            logging.warning('Could not expand directory for vocola grammars')
+            return
         self.setDirectory('vocoladirectory','vocola2')  #always vocola2
         self.setDirectory('vocolagrammarsdirectory', vocGrammarsDir)
         self.copyUnimacroIncludeFile()
@@ -756,7 +770,7 @@ def createIfNotThere(path_name, level_up=None):
     """
     level_up = level_up or 1
     dir_path = isValidDir(path_name)
-    if dir_path:
+    if dir_path and Path(dir_path).is_dir():
         return dir_path
     start_path = config.expand_path(path_name)
     up_path = Path(start_path)
