@@ -39,12 +39,15 @@ isfile, isdir, join = os.path.isfile, os.path.isdir, os.path.join
 
 def do_pip(*args):
     """
-    Run a pip command with args. 
+    Run a pip command with args.
     Diagnostic logging.3
     """
     # run pip in elevated mode:
     if not pyuac.isUserAdmin():
-        pyuac.runAsAdmin()
+        # print('If you want to pip upgrade packages, a new "elevated" process is started. Please answer Y in that case')
+        print('Please run this program in "elevated" mode, when you want to pip upgrade packages')
+        return 
+        # pyuac.runAsAdmin()
         
     if pyuac.isUserAdmin():
         print('continue in Admin (elevated) mode...')

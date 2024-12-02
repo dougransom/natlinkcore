@@ -90,9 +90,9 @@ def _main(Options=None):
 class CLI(cmd.Cmd):
     """provide interactive shell control for the different options.
     """
-    def __init__(self, Config=None,extra_pip_options=[]):
+    def __init__(self, Config=None,extra_pip_options=None):
         cmd.Cmd.__init__(self)
-        self.extra_pip_options=extra_pip_options
+        self.extra_pip_options=extra_pip_options or []
         self.prompt = '\nNatlink config> '
         self.info = "type 'u' for usage"
         self.Config = None
