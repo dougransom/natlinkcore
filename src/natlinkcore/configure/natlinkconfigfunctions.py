@@ -45,9 +45,9 @@ def do_pip(*args):
     # run pip in elevated mode:
     if not pyuac.isUserAdmin():
         # print('If you want to pip upgrade packages, a new "elevated" process is started. Please answer Y in that case')
-        print('Please run this program in "elevated" mode, when you want to pip upgrade packages')
-        return 
-        # pyuac.runAsAdmin()
+        # print('Please run this program in "elevated" mode, when you want to pip upgrade packages')
+        # return 
+        pyuac.runAsAdmin()
         
     if pyuac.isUserAdmin():
         print('continue in Admin (elevated) mode...')
