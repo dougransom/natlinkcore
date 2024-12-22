@@ -410,10 +410,9 @@ class NatlinkMain(metaclass=Singleton):
 
     def trigger_load(self, force_load: bool = None) -> None:
         self.seen.clear()
-        if force_load:
-            self.logger.debug(f'triggering load/reload process (force_load: {force_load})')
-        else:
-            self.logger.debug('triggering load/reload process')
+
+        self.logger.debug(f'triggering load/reload process (force_load: {force_load})' if force_load else 'triggering load/reload process')
+
             
         self.remove_modules_that_no_longer_exist()
 

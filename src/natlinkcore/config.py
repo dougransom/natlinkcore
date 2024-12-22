@@ -101,6 +101,7 @@ class NatlinkConfig:
         for u, directories in self.directories_by_user.items():
             if u in ['', user]:
                 dirs.extend(directories)
+        dirs.extend(self._load_grammar_dirs_specified_by_entry_points())
         return dirs
 
     @staticmethod
