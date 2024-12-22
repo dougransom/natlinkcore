@@ -7,6 +7,8 @@ from enum import IntEnum
 from typing import List, Iterable, Dict
 from pathlib import Path
 import natlink
+from importlib import metadata
+from itertools import chain
 
 class NoGoodConfigFoundException(natlink.NatError):
     pass
@@ -51,11 +53,47 @@ class NatlinkConfig:
                              load_on_startup=True,
                              load_on_user_changed=True)
 
+    @staticmethod
+
+    def _load_grammar_dirs_specified_by_entry_points() -> List[str]:
+        '''
+        Load entry points with group "natlink.grammars".
+        Typically specified in pyproject.toml
+
+        [project.entry-points."natlink.grammars"]
+        yourproject_builtins = "your.module:your_function"
+
+        your_function should return a string, which is a fully resolved path to where the grammars are located. usually this will do:
+        def your_function() -> str:
+            return __path__[0]
+
+        Note:  if you have only one grammar to load in your package (typical case), better to use an entry point
+        in the group "natlink.grammar" to reference the specific python file containing the grammar.  See loader.py.
+
+
+        '''
+        group="natlinkgrammars"
+        entry_points = metadata.entry_points(group=group)
+        grammar_dirs=[]
+
+        for ep in entry_points:
+            try:
+                func = ep.load()
+                logging.debug(f"Calling entry point, name: {name}  function: {func}")
+                g_dir=func()
+                grammar_dirs.append(g_dir)
+            except Exception as e:
+                logging.warning(f"{name} entry point function traceback:\n{e}")
+                logging.debug(f"grammar_dirs located by entry  points: {grammar_dirs}")
+        return grammar_dirs
+
+
     @property
     def directories(self) -> List[str]:
         dirs: List[str] = []
         for _u, directories in self.directories_by_user.items():
             dirs.extend(directories)
+        dirs.extend(self._load_grammar_dirs_specified_by_entry_points())
         return dirs
 
     def directories_for_user(self, user: str) -> List[str]:

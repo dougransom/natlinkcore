@@ -26,6 +26,8 @@ from natlinkcore.singleton import Singleton
 # the possible languages (for get_user_language) (runs at start and on_change_callback, user)
 # default is "enx", being one of the English dialects...
 from natlinkcore import getThisDir
+from typing import Union
+
 thisDir = getThisDir(__file__)  # return a Path instance
 
 
@@ -42,6 +44,7 @@ UserLanguages = {
     "Spanish": "esp",}
 
 python_exec= "python.exe"  #for DAP
+PathOrModule = Union[Path,str]
 
 class NatlinkMain(metaclass=Singleton):
     """main class of Natlink, make it a "singleton"
@@ -54,9 +57,9 @@ class NatlinkMain(metaclass=Singleton):
             raise ValueError(f'loader.NatlinkMain, first instance should be called with a NatlinkConfig instance, not {config}')
         self.logger = logger
         self.config = config
-        self.loaded_modules: Dict[Path, ModuleType] = {}
+        self.loaded_modules: Dict[PathOrModule, ModuleType] = {}
         self.prog_names_visited: Set[str] = set()    # to enable loading program specific grammars
-        self.bad_modules: Set[Path] = set()
+        self.bad_modules: Set[PathOrModule] = set()
         self.load_attempt_times: Dict[Path, float] = {}
         self.__user: str = ''       #
         self.__profile: str = ''    # at start and on_change_callback user
@@ -280,28 +283,36 @@ class NatlinkMain(metaclass=Singleton):
         self._call_and_catch_all_exceptions(unload)
         
 
-    @staticmethod
-    def _import_module_from_path(mod_path: Path) -> ModuleType:
-        mod_name = mod_path.stem
-        spec = importlib.util.spec_from_file_location(mod_name, mod_path)
-        if spec is None:
-            raise FileNotFoundError(f'Could not find spec for: {mod_name}')
-        loader = spec.loader
-        if loader is None:
-            raise FileNotFoundError(f'Could not find loader for: {mod_name}')
-        if not isinstance(loader, importlib.machinery.SourceFileLoader):
-            raise ValueError(f'module {mod_name} does not have a SourceFileLoader loader')
-        module = importlib.util.module_from_spec(spec)
+
+    def _import_module_from_path(self,mod_path: PathOrModule) -> ModuleType:
+        self.logger.debug(f"_import_module_from_path : {mod_path}")
+        if isinstance(mod_path,Path):        
+            mod_name = mod_path.stem
+            spec = importlib.util.spec_from_file_location(mod_name, mod_path)
+            if spec is None:
+                raise FileNotFoundError(f'Could not find spec for: {mod_name}')
+            loader = spec.loader
+            if loader is None:
+                raise FileNotFoundError(f'Could not find loader for: {mod_name}')
+            if not isinstance(loader, importlib.machinery.SourceFileLoader):
+                raise ValueError(f'module {mod_name} does not have a SourceFileLoader loader')
+            module = importlib.util.module_from_spec(spec)
+        else:
+            #better be a module name
+            module=importlib.import_module(mod_path)
+
         loader.exec_module(module)
         return module
 
-    def load_or_reload_module(self, mod_path: Path, force_load: bool = False) -> None:
-        mod_name = mod_path.stem
+    def load_or_reload_module(self, mod_path: PathOrModule, force_load: bool = False) -> None:
+        is_path = isinstance(mod_path,Path)
+        mod_name = is_path and mod_path.stem or mod_path      #get the module name if it isn't a path.
+        
         if mod_path in self.seen:
             self.logger.warning(f'Attempting to load duplicate module: {mod_path})')
             return
         
-        if not mod_path.is_file():
+        if is_path and not mod_path.is_file():
             # this can only happen if a file (_vocola_vcl.py for example) is present when scanning all files
             # but is removed when loading _vocola_main in between (compiling the new state of all .vcl files)
             self.logger.debug(f'load_or_reload_module: not a file, so cannot load:\n\t"{mod_path}')
@@ -355,7 +366,7 @@ class NatlinkMain(metaclass=Singleton):
                     del module
                     module = self._import_module_from_path(mod_path)
                     self.loaded_modules[mod_path] = module
-                    self.logger.debug(f'loaded module: {module.__name__}')
+                    self.logger.debug(f'loaded module: {module.__name__} from {mod_path}')
                     return
                 # self.logger.debug(f'skipping unchanged loaded module: {mod_name}')
                 return
@@ -369,7 +380,7 @@ class NatlinkMain(metaclass=Singleton):
                 del old_module
                 importlib.invalidate_caches()
 
-    def load_or_reload_modules(self, mod_paths: Iterable[Path], force_load: bool = None) -> None:
+    def load_or_reload_modules(self, mod_paths: Iterable[PathOrModule], force_load: bool = None) -> None:
         for mod_path in mod_paths:
             self.load_or_reload_module(mod_path, force_load=force_load)
             self.seen.add(mod_path)

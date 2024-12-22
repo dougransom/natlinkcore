@@ -1,0 +1,14 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "installed_grammar_folder_sample"
+authors = [ ]
+version="0.1dev1"
+description="example on creating a pcakage with natlink grammars in it"
+ [project.entry-points."natlink.grammars"]
+sample_grammars_folder = "installed_grammar_folder_sample:where_are_my_grammars"
+
+[project.urls]
+ 
