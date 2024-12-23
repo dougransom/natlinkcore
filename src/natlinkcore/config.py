@@ -8,7 +8,7 @@ from typing import List, Iterable, Dict
 from pathlib import Path
 import natlink
 from importlib import metadata
-from itertools import chain
+ 
 
 class NoGoodConfigFoundException(natlink.NatError):
     pass
@@ -72,18 +72,18 @@ class NatlinkConfig:
 
 
         '''
-        group="natlinkgrammars"
+        group="natlink.grammars"
         entry_points = metadata.entry_points(group=group)
         grammar_dirs=[]
-
+        return []
         for ep in entry_points:
             try:
-                func = ep.load()
-                logging.debug(f"Calling entry point, name: {name}  function: {func}")
-                g_dir=func()
-                grammar_dirs.append(g_dir)
+                logging.debug(f"Calling entry point, name: {ep.name}")
+                mod = ep.value
+                
+                grammar_dirs.append(mod)
             except Exception as e:
-                logging.warning(f"{name} entry point function traceback:\n{e}")
+                logging.warning(f"{ep.name} entry point function traceback:\n{e}")
                 logging.debug(f"grammar_dirs located by entry  points: {grammar_dirs}")
         return grammar_dirs
 
@@ -94,6 +94,8 @@ class NatlinkConfig:
         for _u, directories in self.directories_by_user.items():
             dirs.extend(directories)
         dirs.extend(self._load_grammar_dirs_specified_by_entry_points())
+        logging.debug(f"directories() returning {dirs}")
+    
         return dirs
 
     def directories_for_user(self, user: str) -> List[str]:
@@ -102,6 +104,7 @@ class NatlinkConfig:
             if u in ['', user]:
                 dirs.extend(directories)
         dirs.extend(self._load_grammar_dirs_specified_by_entry_points())
+        logging.debug(f"directories_for_user() returning {dirs}")
         return dirs
 
     @staticmethod

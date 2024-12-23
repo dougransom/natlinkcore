@@ -27,6 +27,7 @@ from natlinkcore.singleton import Singleton
 # default is "enx", being one of the English dialects...
 from natlinkcore import getThisDir
 from typing import Union
+from importlib import metadata
 
 thisDir = getThisDir(__file__)  # return a Path instance
 
@@ -282,10 +283,39 @@ class NatlinkMain(metaclass=Singleton):
         self.logger.debug(f'unloading module: {module.__name__}')
         self._call_and_catch_all_exceptions(unload)
         
+    def _load_grammar_dirs_specified_by_entry_points(self) -> List[str]:
+            '''
+            Load entry points with group "natlink.grammars".
+            Typically specified in pyproject.toml
 
+            [project.entry-points."natlink.grammars"]
+            yourproject_builtins = "your.module:your_function"
+
+            your_function should return a string, which is a fully resolved path to where the grammars are located. usually this will do:
+            def your_function() -> str:
+                return __path__[0]
+
+            Note:  if you have only one grammar to load in your package (typical case), better to use an entry point
+            in the group "natlink.grammar" to reference the specific python file containing the grammar.  See loader.py.
+
+
+            '''
+            group="natlink.grammars"
+            entry_points = metadata.entry_points(group=group)
+            grammar_dirs=[]
+
+            for ep in entry_points:
+                try:
+                    val = ep.value
+                    self.logger.debug(f"Loader, found entry point, name: {ep.name}  value: {val}")
+                    grammar_dirs.append(val)
+                except Exception as e:
+                    self.logger.warning(f"{ep} entry point function traceback:\n{e}")
+                    self.logger.debug(f"grammar_dirs located by entry  points:\n{grammar_dirs}\nentry points {entry_points}")
+            return grammar_dirs
 
     def _import_module_from_path(self,mod_path: PathOrModule) -> ModuleType:
-        self.logger.debug(f"_import_module_from_path : {mod_path}")
+        self.logger.debug(f"_import_module_from_path : {type(mod_path)} :  {mod_path}  ")
         if isinstance(mod_path,Path):        
             mod_name = mod_path.stem
             spec = importlib.util.spec_from_file_location(mod_name, mod_path)
@@ -297,14 +327,19 @@ class NatlinkMain(metaclass=Singleton):
             if not isinstance(loader, importlib.machinery.SourceFileLoader):
                 raise ValueError(f'module {mod_name} does not have a SourceFileLoader loader')
             module = importlib.util.module_from_spec(spec)
+            loader.exec_module(module)
         else:
             #better be a module name
-            module=importlib.import_module(mod_path)
+            spec = importlib.util.find_spec(mod_path)
+            loader=spec.loader
+            module = importlib.util.module_from_spec(spec)
+            loader.exec_module(module)
+            #should exec_module also be here?  or someting else?
 
-        loader.exec_module(module)
         return module
 
     def load_or_reload_module(self, mod_path: PathOrModule, force_load: bool = False) -> None:
+        self.logger.debug(f"load_or_reload_module, path/module {mod_path} force_load {force_load}")
         is_path = isinstance(mod_path,Path)
         mod_name = is_path and mod_path.stem or mod_path      #get the module name if it isn't a path.
         
@@ -395,14 +430,14 @@ class NatlinkMain(metaclass=Singleton):
     def remove_modules_that_no_longer_exist(self) -> None:
         mod_paths = self.module_paths_for_user
        
-        for mod_path in set(self.loaded_modules).difference(mod_paths):
-            self.logger.info(f'unloading removed or not-for-this-user module {mod_path.stem}')
+        for  mod_path in set(self.loaded_modules).difference(mod_paths):
+            self.logger.info(f'unloading removed or not-for-this-user module {mod_path}')
             old_module = self.loaded_modules.pop(mod_path)
             self.load_attempt_times.pop(mod_path)
             self.unload_module(old_module)
             del old_module
         for mod_path in self.bad_modules.difference(mod_paths):
-            self.logger.debug(f'bad module was removed: {mod_path.stem}')
+            self.logger.debug(f'bad module was removed: {mod_path}')
             self.bad_modules.remove(mod_path)
             self.load_attempt_times.pop(mod_path)
 
@@ -417,6 +452,7 @@ class NatlinkMain(metaclass=Singleton):
         self.remove_modules_that_no_longer_exist()
 
         mod_paths = self.module_paths_for_user
+        self.logger.debug(f"mod_paths:  {mod_paths}")
         if not mod_paths:
             fallback_directory = Path(get_natlinkcore_dirname())/"DefaultConfig"
             if not fallback_directory.is_dir():
@@ -424,7 +460,10 @@ class NatlinkMain(metaclass=Singleton):
             mod_paths = self._module_paths_in_dirs([fallback_directory])
             print(f'Warning, no directories specified for Natlink grammars,\n\tfalling back to default configuration "{str(fallback_directory)}"')
         self._pre_load_callback.run()
+
         self.load_or_reload_modules(mod_paths, force_load=force_load)
+        more=self._load_grammar_dirs_specified_by_entry_points()
+        self.load_or_reload_modules(more,force_load=force_load)
         self._post_load_callback.run()
 
     def on_change_callback(self, change_type: str, args: Any) -> None:
