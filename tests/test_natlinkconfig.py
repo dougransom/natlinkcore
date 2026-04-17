@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 import os
-import sysconfig
+# import sysconfig
 import pytest
 
 thisDir = Path(__file__).parent
@@ -48,8 +48,8 @@ def test_check_elevated_mode_tt(cli, monkeypatch):
     """
     def return_true():
         return True
-    def return_false():
-        return False
+    # def return_false():
+    #     return False
     monkeypatch.setattr(cli, 'am_elevated', return_true)
     monkeypatch.setattr(cli, 'want_elevated', return_true)
     result = cli.check_elevated_mode()
@@ -59,8 +59,8 @@ def test_check_elevated_mode_ff(cli, monkeypatch):
     """try the variants of am_elevated and want_elevated
     result True
     """
-    def return_true():
-        return True
+    # def return_true():
+    #     return True
     def return_false():
         return False
     monkeypatch.setattr(cli, 'am_elevated', return_false)

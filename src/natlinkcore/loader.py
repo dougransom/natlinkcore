@@ -654,7 +654,11 @@ def config_locations() -> Iterable[str]:
     global had_msg_warning, had_msg_error
     join, expanduser, getenv, isfile = os.path.join, os.path.expanduser, os.getenv, os.path.isfile
     home = expanduser('~')
-    config_sub_dir = '.natlink'
+    old_config_sub_dir = '.natlink'
+    localappdata_path = Path(os.environ['LOCALAPPDATA'])
+    config_subdir = 'Natlink'
+    config_dir = str(localappdata_path/config_subdir)
+    
     natlink_inifile = 'natlink.ini'
     fallback_config_file = join(get_natlinkcore_dirname(), "DefaultConfig", natlink_inifile)
     if not isfile(fallback_config_file):
@@ -685,7 +689,7 @@ def config_locations() -> Iterable[str]:
         return [nl_settings_file, fallback_config_file]
 
     # choose between .natlink/natlink.ini in home or the fallback_directory:         
-    return [join(home, config_sub_dir, natlink_inifile), fallback_config_file]
+    return [join(home, config_dir, natlink_inifile), fallback_config_file]
 
 def startDap(config : NatlinkConfig) -> bool:
     """
