@@ -90,7 +90,7 @@ layout = [[sg.T('Environment:', font='bold'), sg.T(f'Windows OS: {osVersion.majo
           #### Buttons at bottom ####
           [sg.Button('Exit'), sg.B('Open Natlink Config File', key='Open_Config', enable_events=True, auto_size_button=True)]]
 
-window = sg.Window('Natlink configuration GUI', layout, enable_close_attempted_event=True)
+window = sg.Window('Natlink configuration GUI', layout, enable_close_attempted_event=True, finalize=True)
 
  #this is for the GUI logging.
 #set the level on this corresponding to the natlink levels later.
