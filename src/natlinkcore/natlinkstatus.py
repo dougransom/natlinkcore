@@ -751,8 +751,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
             Always return True
         """
         key = 'VocolaTakesUniactions'
-        return True
-        # return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
 
     
     def getInstallVersion(self):
@@ -784,7 +783,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
                     'DNSName', 'NatlinkIni', 'Natlink_Settingsdir',
                     'UnimacroDirectory', 'UnimacroUserDirectory', 'UnimacroGrammarsDirectory', 'UnimacroDataDirectory',
                     'VocolaDirectory', 'VocolaUserDirectory', 'VocolaGrammarsDirectory',
-                    'VocolaTakesLanguages', 
+                    'VocolaTakesLanguages', 'VocolaTakesUniactions',
                     'UserDirectory',
                     'DragonflyDirectory', 'DragonflyUserDirectory',
                     'ExtraGrammarDirectories',
@@ -843,12 +842,14 @@ class NatlinkStatus(metaclass=singleton.Singleton):
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is enabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
                         'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaTakesUniactions',
                         ):
                 self.appendAndRemove(L, D, key)
         else:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is disabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
                         'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaTakesUniactions'
                         ):
                 del D[key]
 
