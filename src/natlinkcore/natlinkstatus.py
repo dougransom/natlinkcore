@@ -746,12 +746,13 @@ class NatlinkStatus(metaclass=singleton.Singleton):
         key = 'vocolatakeslanguages'
         return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
     
-    def getVocolaTakesUnimacroActions(self):
-        """gets and value for optional Vocola takes Unimacro actions
-        If Vocola is not enabled, this option will also return False
+    def getVocolaTakesUniactions(self):
+        """gets and value for optional Vocola takes Uniactions (from dtactions)
+            Always return True
         """
-        key = 'VocolaTakesUnimacroActions'
-        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        key = 'VocolaTakesUniactions'
+        return True
+        # return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
 
     
     def getInstallVersion(self):
@@ -783,7 +784,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
                     'DNSName', 'NatlinkIni', 'Natlink_Settingsdir',
                     'UnimacroDirectory', 'UnimacroUserDirectory', 'UnimacroGrammarsDirectory', 'UnimacroDataDirectory',
                     'VocolaDirectory', 'VocolaUserDirectory', 'VocolaGrammarsDirectory',
-                    'VocolaTakesLanguages', 'VocolaTakesUnimacroActions',
+                    'VocolaTakesLanguages', 
                     'UserDirectory',
                     'DragonflyDirectory', 'DragonflyUserDirectory',
                     'ExtraGrammarDirectories',
@@ -842,13 +843,13 @@ class NatlinkStatus(metaclass=singleton.Singleton):
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is enabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
                         'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
-                        'VocolaTakesUnimacroActions'):
+                        ):
                 self.appendAndRemove(L, D, key)
         else:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is disabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
                         'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
-                        'VocolaTakesUnimacroActions'):
+                        ):
                 del D[key]
 
         ## Unimacro:
