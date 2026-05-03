@@ -359,7 +359,7 @@ class NatlinkConfig:
         if unimacro_user_dir and isdir(unimacro_user_dir):
             logging.info(f'UnimacroUserDirectory is already defined: "{unimacro_user_dir}"\n\tto change, first clear (option "O") and then set again')
             logging.info('\nWhen you want to upgrade Unimacro, also first clear ("O"), then choose this option ("o") again.\n')
-            return
+            return False
 
         uni_dir = self.status.getUnimacroDirectory()
         if uni_dir:
@@ -505,6 +505,8 @@ class NatlinkConfig:
         self.config_remove('directories', 'vocolagrammarsdirectory')   # could still be there
         self.config_remove('directories', 'vocola')
         self.config_remove('directories', 'vocoladirectory')   #could still be there...
+
+    disable_vocola2 = disable_vocola
 
     def copyUnimacroIncludeFile(self):
         """copy Unimacro include file into Vocola user directory

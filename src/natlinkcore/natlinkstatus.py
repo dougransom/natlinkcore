@@ -597,7 +597,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
         self.VocolaUserDirectory = ''
         return ''
     getvocolauserdirectory = getVocolaUserDirectory
-    
+    getVocola2UserDirectory = getVocolaUserDirectory
     
     def getVocolaDirectory(self):
         if self.VocolaDirectory is not None:
