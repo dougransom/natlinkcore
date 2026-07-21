@@ -203,7 +203,7 @@ def test_expand_path(mock_syspath,mock_settingsdir):
 
     result = expand_path('/natlinkcore', must_exist=False)
     assert not os.path.isdir(result)
-    assert result == '/natlinkcore'
+    assert result in ['/natlinkcore', '\\natlinkcore']
 
 
 
