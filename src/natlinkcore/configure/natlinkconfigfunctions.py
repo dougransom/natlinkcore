@@ -206,7 +206,7 @@ class NatlinkConfig:
                 print('No valid directory specified')
                 return
 
-        dir_path = dir_path.strip()
+        dir_path = str(dir_path).strip()
         directory = config.expand_path(dir_path)
         if directory is False:
             logging.error(f'Cannot expand dir_path: "{dir_path}"')
@@ -494,7 +494,7 @@ class NatlinkConfig:
             
         self.setDirectory('vocoladirectory','vocola2')  #always vocola2
         self.setDirectory('vocolagrammarsdirectory', vocGrammarsDir)
-        self.copyUnimacroIncludeFile()
+        self.copyUniactionsIncludeFile()
         
 
     def disable_vocola(self, arg=None):
@@ -508,26 +508,27 @@ class NatlinkConfig:
 
     disable_vocola2 = disable_vocola
 
-    def copyUnimacroIncludeFile(self):
+    def copyUniactionsIncludeFile(self):
         """copy Unimacro include file into Vocola user directory
 
         """
-        uscFile = 'Unimacro.vch'
+        uscFile = 'Uniactions.vch'
+        # also remove the previous version Unimacro.vch
         # also remove usc.vch from VocolaUserDirectory
         dtactionsDir = Path(self.status.getDtactionsDirectory())
         fromFolder = Path(dtactionsDir)/'Vocola_compatibility'
         toFolder = Path(self.status.getVocolaUserDirectory())
         if not dtactionsDir.is_dir():
-            mess = f'copyUnimacroIncludeFile: dtactionsDir "{str(dtactionsDir)}" is not a directory'
+            mess = f'copyUniactionsIncludeFile: dtactionsDir "{str(dtactionsDir)}" is not a directory'
             logging.warning(mess)
             return
         fromFile = fromFolder/uscFile
         if not fromFile.is_file():
-            mess = f'copyUnimacroIncludeFile: file "{str(fromFile)}" does not exist (is not a valid file)'
+            mess = f'copyUniactionsIncludeFile: file "{str(fromFile)}" does not exist (is not a valid file)'
             logging.warning(mess)
             return
         if not toFolder.is_dir():
-            mess = f'copyUnimacroIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
+            mess = f'copyUniactionsIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
             logging.warning(mess)
             return
         
@@ -537,7 +538,7 @@ class NatlinkConfig:
             try:
                 os.remove(toFile)
             except:
-                mess = f'copyUnimacroIncludeFile: Could not remove previous version of "{str(toFile)}"'
+                mess = f'copyUniactionsIncludeFile: Could not remove previous version of "{str(toFile)}"'
                 logging.info(mess)
         try:
             shutil.copyfile(fromFile, toFile)
@@ -548,32 +549,32 @@ class NatlinkConfig:
             return
         return
 
-    def removeUnimacroIncludeFile(self):
+    def removeUniactionsIncludeFile(self):
         """remove Unimacro include file from Vocola user directory
 
         """
-        uscFile = 'Unimacro.vch'
-        # also remove usc.vch from VocolaUserDirectory
+        uscFiles = ['Unimacro.vch', 'Uniactions.vch', 'usc.vch']
+        # also remove previous files unimacro.vch and usc.vch from VocolaUserDirectory
         toFolder = Path(self.status.getVocolaUserDirectory())
         if not toFolder.is_dir():
-            mess = f'removeUnimacroIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
+            mess = f'removeUniactionsIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
             logging.warning(mess)
             return
-        
-        toFile = toFolder/uscFile
-        if toFolder.is_file():
-            logging.info(f'remove Unimacro include file "{str(toFile)}"')
-            try:
-                os.remove(toFile)
-            except:
-                mess = f'copyUnimacroIncludeFile: Could not remove previous version of "{str(toFile)}"'
-                logging.warning(mess)
+        for f in uscFiles:
+            toFile = toFolder/f
+            if toFile.is_file():
+                logging.info(f'remove Uniactions include file "{str(toFile)}"')
+                try:
+                    os.remove(toFile)
+                except:
+                    mess = f'copyUniactionsIncludeFile: Could not remove previous version of "{str(toFile)}"'
+                    logging.warning(mess)
 
-    def includeUnimacroVchLineInVocolaFiles(self, toFolder=None):
+    def includeUniactionsVchLineInVocolaFiles(self, toFolder=None):
         """include the Unimacro wrapper support line into all Vocola command files
         
         as a side effect, set the variable for Unimacro in Vocola support:
-        VocolaTakesUnimacroActions...
+        VocolaTakesUniactions...
         """
         uscFile = 'Unimacro.vch'
         oldUscFile = 'usc.vch'
@@ -630,12 +631,12 @@ class NatlinkConfig:
                     nFiles += 1
             elif len(f) == 3:
                 # subdirectory, recursive
-                self.includeUnimacroVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
+                self.includeUniactionsVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
         mess = f'changed {nFiles} files in {toFolder}'
         logging.warning(mess)
         return True
 
-    def removeUnimacroVchLineInVocolaFiles(self, toFolder=None):
+    def includeUniactionsVchLineInVocolaFiles(self, toFolder=None):
         """remove the Unimacro wrapper support line into all Vocola command files
         
         toFolder set with recursive calls...
@@ -682,8 +683,8 @@ class NatlinkConfig:
                     open(F, 'w').write(''.join(Output))
                     nFiles += 1
             elif len(f) == 3:
-                self.removeUnimacroVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
-        # self.disableVocolaTakesUnimacroActions()
+                self.includeUniactionsVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
+        # self.disableVocolaTakesUniactions()
         mess = f'removed include lines from {nFiles} files in {toFolder}'
         logging.warning(mess)
 
@@ -703,25 +704,27 @@ class NatlinkConfig:
         key = "vocolatakeslanguages"
         self.config_set('vocola', key, 'False')
 
-    def enableVocolaTakesUnimacroActions(self):
+    def enableVocolaTakesUniactions(self):
         """do setting, so Vocola can take Unimacro Actions
         also include correct include line in each Vcl file
         and copy Unimacro.vch to the VocolaUserDirectory
 
         """
-        key = "vocolatakesunimacroactions"
+        key = "VocolaTakesUniactions"
         self.config_set('vocola', key, 'True')
-        self.includeUnimacroVchLineInVocolaFiles()
-        self.copyUnimacroIncludeFile()
+        self.includeUniactionsVchLineInVocolaFiles()
+        # remove previous versions...
+        self.removeUniactionsIncludeFile()
+        self.copyUniactionsIncludeFile()
 
-    def disableVocolaTakesUnimacroActions(self):
-        """disables so Vocola does not take Unimacro Actions
-        and remove Unimacro.vch and the include lines in each .vcl file
+    def disableVocolaTakesUniactions(self):
+        """disables this option, so Vocola does not take Uniactions any more
+        and remove Uniactions.vch and the include lines in each .vcl file
         """
-        key = "vocolatakesunimacroactions"
+        key = "VocolaTakesUniactions"
         self.config_set('vocola', key, 'False')
-        self.removeUnimacroVchLineInVocolaFiles()
-        self.removeUnimacroIncludeFile()
+        self.includeUniactionsVchLineInVocolaFiles()
+        self.removeUniactionsIncludeFile()
         
     def openConfigFile(self):
         """open the natlink.ini config file

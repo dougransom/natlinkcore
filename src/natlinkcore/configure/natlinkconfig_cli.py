@@ -450,7 +450,7 @@ another environment variable (%%...%%). (example: "o ~\Documents\UnimacroUser")
 #     def do_l(self, arg):
 #         self.message = "Copy include file Unimacro.vch into Vocola User Directory"
 #         print(f'do action: {self.message}')
-#         self.Config.copyUnimacroIncludeFile()
+#         self.Config.copyUniactionsIncludeFile()
 # 
 #     def help_l(self):
 #         print('-'*60)
@@ -467,14 +467,14 @@ another environment variable (%%...%%). (example: "o ~\Documents\UnimacroUser")
 #     def do_m(self, arg):
 #         self.message = 'Insert "include Unimacro.vch" line in each Vocola Command File'
 #         print(f'do action: {self.message}')
-#         self.Config.enableVocolaTakesUnimacroActions()
+#         self.Config.enableVocolaTakesUniactions()
 #         
 #     def do_M(self, arg):
 #         self.message = 'Remove "include Unimacro.vch" line from each Vocola Command File'
 #         print(f'do action: {self.message}')
-#         self.Config.removeUnimacroVchLineInVocolaFiles()
-#         print('and do action: disableVocolaTakesUnimacroActions')
-#         self.Config.disableVocolaTakesUnimacroActions()
+#         self.Config.includeUniactionsVchLineInVocolaFiles()
+#         print('and do action: disableVocolaTakesUniactions')
+#         self.Config.disableVocolaTakesUniactions()
 #         
 #     help_m = help_M = help_l
     
@@ -542,12 +542,12 @@ logging variable to "DEBUG" or "INFO"
     def do_a(self, arg):
         self.message = "Enable Vocola taking Unimacro actions"
         print(f'do action: {self.message}')
-        self.Config.enableVocolaTakesUnimacroActions()
+        self.Config.enableVocolaTakesUniactions()
         
     def do_A(self, arg):
         self.message = "Disable Vocola taking Unimacro actions"
         print(f'do action: {self.message}')
-        self.Config.disableVocolaTakesUnimacroActions()
+        self.Config.disableVocolaTakesUniactions()
 
     def help_a(self):
         print('-'*60)

@@ -1,15 +1,17 @@
-#pylint:disable= C0114, C0116, W0401, W0614, W0621, W0108, W0212, C3001,C0413
+#pylint:disable= C0114, C0116, W0401, W0614, W0621, W0108, W0212, C3001,C0413, W0107
+
 
 from pathlib import Path
+from distutils.dir_util import copy_tree
 import sys
 import os
-import sysconfig
+# import sysconfig
 import pytest
 
 thisDir = Path(__file__).parent
 configDir = os.path.normpath(thisDir/'../src/natlinkcore/configure')
-sys.path.append(configDir)
-print(f'sys.path: {sys.path}')
+sys.path.insert(0, configDir)
+# print(f'sys.path: {sys.path}')
 
 import natlinkconfig_cli
 import natlinkconfigfunctions
@@ -20,6 +22,7 @@ def cli():
     """
     _cli = natlinkconfig_cli._main()
     return _cli
+
 
 
 def test_run_natlinkconfig_cli():
@@ -48,8 +51,8 @@ def test_check_elevated_mode_tt(cli, monkeypatch):
     """
     def return_true():
         return True
-    def return_false():
-        return False
+    # def return_false():
+    #     return False
     monkeypatch.setattr(cli, 'am_elevated', return_true)
     monkeypatch.setattr(cli, 'want_elevated', return_true)
     result = cli.check_elevated_mode()
@@ -59,8 +62,8 @@ def test_check_elevated_mode_ff(cli, monkeypatch):
     """try the variants of am_elevated and want_elevated
     result True
     """
-    def return_true():
-        return True
+    # def return_true():
+    #     return True
     def return_false():
         return False
     monkeypatch.setattr(cli, 'am_elevated', return_false)
@@ -130,12 +133,30 @@ def test_check_elevated_mode_with_do_f(cli, monkeypatch):
     result = cli.check_elevated_mode()
     assert result is True
     
+def test_change_uniactions_option_vocola(self, cli, ini):
+    """changed option, return also result of old variant ()
+    """
     
+
+def test_natlink_config_basics(vocola_config_setup, cli):
+    """trying the test procedure from conftest.py
+    """
+    natlink_config_dir, vocola_userdir = vocola_config_setup
+    print(f'natlink_config_dir: {natlink_config_dir}')
+    print(f'vocola_userdir: {vocola_userdir}')
+    assert os.path.isdir(natlink_config_dir)
+    assert os.path.isdir(vocola_userdir)
+    assert os.path.isfile(natlink_config_dir/'natlink.ini')
+    #copy a sample
+    copy_tree(str(thisDir/"samples"/"vocola_userdir_1"),str(vocola_userdir))
+    cli.do_v(vocola_userdir)
+    
+
 
 def _main():
     """run pytest for this module
     """
-    pytest.main(['test_natlinkconfig.py'])
+    pytest.main(['test_natlinkconfig.py::test_natlink_config_basics'])
 
 
 if __name__ == "__main__":
