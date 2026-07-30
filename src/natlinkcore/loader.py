@@ -607,7 +607,7 @@ class NatlinkMain(metaclass=Singleton):
             raise OSError(f'getconfigsetting, no valid filepath: "{filepath}"')
         rwfile = ReadWriteFile()
         self.config_text = rwfile.readAnything(filepath)
-        Config = configparser.ConfigParser()
+        Config = configparser.ConfigParser(interpolation=None)
         Config.read_string(self.config_text)
         
         if option is None:

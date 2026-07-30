@@ -17,7 +17,7 @@ The "bom mark" is sometimes/especially the case with the ini files of the Dragon
     ```
     rwfile = ReadWriteFile()
     self.config_text = rwfile.readAnything(filepath)
-    Config = configparser.ConfigParser()
+    Config = configparser.ConfigParser(interpolation=None)
     Config.read_string(self.config_text)
     ```
 

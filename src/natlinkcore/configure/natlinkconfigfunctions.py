@@ -121,11 +121,12 @@ class NatlinkConfig:
         #     print(f'key: {key}, value: {value}')
 
     def getConfig(self):
-        """return the config instance
+        """return the config instance,
         """
         rwfile = readwritefile.ReadWriteFile()
         config_text = rwfile.readAnything(self.config_path)
-        _config = configparser.ConfigParser()
+        #disable any configuration, enabling using % sign in config values (QH, 30-07-2026)
+        _config = configparser.ConfigParser(interpolation=None)
         _config.read_string(config_text)
         self.config_encoding = rwfile.encoding
         return _config
@@ -135,7 +136,7 @@ class NatlinkConfig:
 
         """
         try:
-            return self.Config.get(section, option)
+            return self.Config.get(section, option)  # all interpolation is disabled
         except (configparser.NoSectionError, configparser.NoOptionError):
             return None
  
@@ -220,7 +221,7 @@ class NatlinkConfig:
                 logging.info(f'Cannot set "{option}", the given path is invalid: "{directory}" ("{dir_path}")')
             return
         
-        nice_dir_path = self.prefix_home(dir_path)
+        nice_dir_path = self.prefix_home_appdata(dir_path)
         nice_dir_path = nice_dir_path.replace('/', '\\')        
         self.config_set(section, option, nice_dir_path)
         dir_path = dir_path.strip()
@@ -258,12 +259,27 @@ class NatlinkConfig:
         logging.info(f'cleared "{option}"')
  
  
-    def prefix_home(self, dir_path):
-        """if dir_path startswith home directory, replace this with "~"
+    def prefix_home_appdata(self, dir_path):
+        """if dir_path startswith home directory, replace this with "%personalhome% (instead of "~")
+        
+        Same if dir_path startswith the path of you local appdata directory, change to %localappdata%.
         """
         home_path = str(Path.home())
+        
+        appdataLocal = os.path.expandvars('%localappdata%')
+        if dir_path.startswith(appdataLocal):
+            dir_path = dir_path.replace(appdataLocal, '%localappdata%')
+            return dir_path
+
+
+        appdataRoaming = rf'{home_path}\AppData\Roaming'
+        if dir_path.startswith(appdataRoaming):
+            dir_path = dir_path.replace(appdataRoaming, '%appdata%')
+            return dir_path
+
         if dir_path.startswith(home_path):
-            dir_path = dir_path.replace(home_path, "~")
+            dir_path = dir_path.replace(home_path, "%personalhome%")
+            
         return dir_path
             
  
@@ -571,78 +587,12 @@ class NatlinkConfig:
                     logging.warning(mess)
 
     def includeUniactionsVchLineInVocolaFiles(self, toFolder=None):
-        """include the Unimacro wrapper support line into all Vocola command files
-        
-        as a side effect, set the variable for Unimacro in Vocola support:
-        VocolaTakesUniactions...
-        """
-        uscFile = 'Unimacro.vch'
-        oldUscFile = 'usc.vch'
-##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
-##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
-
-        # also remove includes of usc.vch
-        vocUserDir = self.status.getVocolaUserDirectory()   
-        toFolder = toFolder or vocUserDir
-        subDirectory = toFolder != vocUserDir
-        if subDirectory:
-            includeLine = f'include ..\\{uscFile};\n'
-            oldIncludeLines = [f'include {oldUscFile};',
-                               f'include ..\\{oldUscFile};',
-                               f'include {uscFile};'
-                               ]
-        else:
-            includeLine = f'include {uscFile};\n'
-            oldIncludeLines = [f'include {oldUscFile};',
-                               f'include ..\\{oldUscFile};',
-                               f'include ..\\{uscFile};'
-                               ]
-            
-        if not os.path.isdir(toFolder):
-            if subDirectory:
-                mess = f'cannot find Vocola command files in sub directory, not a valid path: {toFolder}'
-            else:
-                mess = f'cannot find Vocola command files in irectory, not a valid path: {toFolder}'
-            logging.warning(mess)
-            return mess
-        
-        nFiles = 0
-        for f in os.listdir(toFolder):
-            if f.endswith(".vcl"):
-                F = os.path.join(toFolder, f)
-                changed = 0
-                correct = 0
-                Output = []
-                for line in open(F, 'r'):
-                    if line.strip().lower() == includeLine.strip().lower():
-                        correct = 1
-                    for oldLine in oldIncludeLines:
-                        if line.strip().lower() == oldLine.lower():
-                            changed += 1
-                            break
-                    else:
-                        Output.append(line)
-                if changed or not correct:
-                    # print(f'{F}: wrong lines: {changed}, had correct line: {bool(correct)}')   # changes were made:
-                    if not correct:
-                        # print(f'\tinclude: "{includeLine.strip()}"')
-                        Output.insert(0, includeLine)
-                    open(F, 'w').write(''.join(Output))
-                    nFiles += 1
-            elif len(f) == 3:
-                # subdirectory, recursive
-                self.includeUniactionsVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
-        mess = f'changed {nFiles} files in {toFolder}'
-        logging.warning(mess)
-        return True
-
-    def includeUniactionsVchLineInVocolaFiles(self, toFolder=None):
-        """remove the Unimacro wrapper support line into all Vocola command files
+        """remove the Uniactions wrapper support line into all Vocola command files
         
         toFolder set with recursive calls...
         """
-        uscFile = 'Unimacro.vch'
-        oldUscFile = 'usc.vch'
+        uscFile = 'Uniactions.vch'
+        oldUscFiles = ['usc.vch', 'Unimacro.vch']
 ##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
 ##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
         
@@ -652,14 +602,15 @@ class NatlinkConfig:
         else:
             toFolder = self.status.getVocolaUserDirectory()
             
-        oldIncludeLines = [f'include {oldUscFile};',
-                           f'include ..\\{oldUscFile};',
-                           f'include {uscFile};',
-                           f'include ..\\{uscFile};',
-                           f'include ../{oldUscFile};',
-                           f'include ../{uscFile};',
-                           ]
-
+        oldIncludeLines = []
+        ### fix change in sub directory here!!! TODO QH
+        for oldInc in oldUscFiles:
+            oldIncludeLines.append(f'include {oldInc};')
+            oldIncludeLines.append(f'include ..\\{oldInc};')
+            oldIncludeLines.append(f'include {oldInc};')
+            oldIncludeLines.append(f'include ..\\{oldInc};')
+            oldIncludeLines.append(f'include ../{oldInc};')
+            oldIncludeLines.append(f'include ../{oldInc};')
             
         if not os.path.isdir(toFolder):
             mess = f'cannot find Vocola command files directory, not a valid path: {toFolder}'

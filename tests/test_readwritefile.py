@@ -152,7 +152,7 @@ def test_acoustics_ini(tmp_path):
     F_path = mock_readwritefiledir/F
     rwfile = ReadWriteFile()
     config_text = rwfile.readAnything(F_path)
-    Config = configparser.ConfigParser()
+    Config = configparser.ConfigParser(interpolation=None)
     Config.read_string(config_text)
     assert Config.get('Acoustics', '2 2') == '2_2'
     
@@ -186,7 +186,7 @@ def test_config_ini(tmp_path,F):
     testDir.mkdir()
     rwfile = ReadWriteFile()
     config_text = rwfile.readAnything(F_path)
-    Config = configparser.ConfigParser()
+    Config = configparser.ConfigParser(interpolation=None)
     Config.read_string(config_text)
     debug_level = Config.get('settings', 'log_level')
     assert debug_level == 'DEBUG'

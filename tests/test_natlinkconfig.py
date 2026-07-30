@@ -16,6 +16,9 @@ sys.path.insert(0, configDir)
 import natlinkconfig_cli
 import natlinkconfigfunctions
 
+def return_true(*args):
+    return True
+
 @pytest.fixture
 def cli():
     """return the (non interactive) cli
@@ -133,15 +136,48 @@ def test_check_elevated_mode_with_do_f(cli, monkeypatch):
     result = cli.check_elevated_mode()
     assert result is True
     
-def test_change_uniactions_option_vocola(self, cli, ini):
-    """changed option, return also result of old variant ()
-    """
-    
 
-def test_natlink_config_basics(vocola_config_setup, cli):
-    """trying the test procedure from conftest.py
+def test_prefix_home_appdata(cli):
+    """check the existence of environment variables for shortening the path of a directory
+    
+    No "~" any more, use "localappdata". Most used for natlink config files!!!
+    Also check "appdata", which expands to the roaming appdata directory (Handle with care!!!)
+    
+    Check this with values on your computer, monkeypatching does not seem to worth the trouble...
     """
+    to_prefix = os.path.expandvars('%localappdata%\\Microsoft')
+    prefixed  = cli.Config.prefix_home_appdata(to_prefix)
+    assert prefixed == '%localappdata%\\Microsoft'
+
+    expanded = os.path.expandvars(prefixed)
+    assert os.path.isdir(expanded)
+    
+    # check %appdata% (roaming)
+    to_prefix = os.path.expandvars('%appdata%\\Microsoft')
+    prefixed  = cli.Config.prefix_home_appdata(to_prefix)
+    assert prefixed == '%appdata%\\Microsoft'
+
+    expanded = os.path.expandvars(prefixed)
+    assert os.path.isdir(expanded)
+    
+    # check %personalhome% (~)
+    to_prefix = os.path.expandvars('%personalhome%\\Documents')
+    prefixed  = cli.Config.prefix_home_appdata(to_prefix)
+    assert prefixed == '%personalhome%\\Documents'
+
+    expanded = os.path.expandvars(prefixed)
+    assert os.path.isdir(expanded)
+    assert to_prefix == expanded
+    
+    
+def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
+    """enable and disable vocola.
+    
+    ALSO: trying the test procedure from conftest.py
+    """
+    monkeypatch.setattr(cli.Config, "pip_package", return_true)
     natlink_config_dir, vocola_userdir = vocola_config_setup
+    
     print(f'natlink_config_dir: {natlink_config_dir}')
     print(f'vocola_userdir: {vocola_userdir}')
     assert os.path.isdir(natlink_config_dir)
@@ -150,15 +186,15 @@ def test_natlink_config_basics(vocola_config_setup, cli):
     #copy a sample
     copy_tree(str(thisDir/"samples"/"vocola_userdir_1"),str(vocola_userdir))
     cli.do_v(vocola_userdir)
-    
+    assert cli.Config.status.vocolaIsEnabled()
 
 
 def _main():
     """run pytest for this module
     """
-    pytest.main(['test_natlinkconfig.py::test_natlink_config_basics'])
+    pytest.main(['test_natlinkconfig.py'])
 
-
+ 
 if __name__ == "__main__":
     _main()
 

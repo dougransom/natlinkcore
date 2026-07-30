@@ -13,7 +13,6 @@ from shutil import copy as file_copy
 thisDir = Path(__file__).parent
 
 
-
 @cache          
 def vocola_source_dir() ->Path:
     return Path(importlib.util.find_spec("vocola2").submodule_search_locations[0])

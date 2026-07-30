@@ -129,7 +129,7 @@ class NatlinkConfig:
     @classmethod
     def from_first_found_file(cls, files: Iterable[str]) -> 'NatlinkConfig':
         isfile = os.path.isfile
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         for fn in files:
             if not isfile(fn):
                 continue
@@ -180,6 +180,16 @@ When there is nothing to expand, just return the input
         if must_exist:
             assert isdir(home_expanded)
         return normpath(home_expanded)
+
+    if input_dir.startswith('%'):
+        input_dir = expandvars(input_dir)
+        # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
+        if must_exist:
+            assert isdir(input_dir)
+        return normpath(input_dir)
+    
+    
+    
     
     if isdir(input_dir):
         return normpath(input_dir)
