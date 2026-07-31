@@ -7,11 +7,12 @@ import sys
 import os
 # import sysconfig
 import pytest
+from natlinkcore import config
 
 thisDir = Path(__file__).parent
 configDir = os.path.normpath(thisDir/'../src/natlinkcore/configure')
 sys.path.insert(0, configDir)
-# print(f'sys.path: {sys.path}')
+print(f'sys.path: {sys.path}')
 
 import natlinkconfig_cli
 import natlinkconfigfunctions
@@ -145,35 +146,44 @@ def test_prefix_home_appdata(cli):
     
     Check this with values on your computer, monkeypatching does not seem to worth the trouble...
     """
-    to_prefix = os.path.expandvars('%localappdata%\\Microsoft')
+    to_prefix = config.expand_path('%localappdata%\\Microsoft')
     prefixed  = cli.Config.prefix_home_appdata(to_prefix)
     assert prefixed == '%localappdata%\\Microsoft'
 
-    expanded = os.path.expandvars(prefixed)
+    expanded = config.expand_path(prefixed)
     assert os.path.isdir(expanded)
     
     # check %appdata% (roaming)
-    to_prefix = os.path.expandvars('%appdata%\\Microsoft')
+    to_prefix = config.expand_path('%appdata%\\Microsoft')
     prefixed  = cli.Config.prefix_home_appdata(to_prefix)
     assert prefixed == '%appdata%\\Microsoft'
 
-    expanded = os.path.expandvars(prefixed)
+    expanded = config.expand_path(prefixed)
     assert os.path.isdir(expanded)
     
     # check %personalhome% (~)
-    to_prefix = os.path.expandvars('%personalhome%\\Documents')
+    to_prefix = config.expand_path('%personalhome%\\Documents')
     prefixed  = cli.Config.prefix_home_appdata(to_prefix)
     assert prefixed == '%personalhome%\\Documents'
 
-    expanded = os.path.expandvars(prefixed)
+    expanded = config.expand_path(prefixed)
     assert os.path.isdir(expanded)
     assert to_prefix == expanded
+    
+    # expand the previous "~":
+    prefixed = "~\\Documents"
+    expanded = config.expand_path(prefixed)
+    assert os.path.isdir(expanded)
+    prefixed_new  = cli.Config.prefix_home_appdata(expanded)
+    assert prefixed_new == '%personalhome%\\Documents'
     
     
 def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     """enable and disable vocola.
     
     ALSO: trying the test procedure from conftest.py
+    ASSUME: vocola is already a valid module!!! in this test pipping the package vocola2
+            is skipped...
     """
     monkeypatch.setattr(cli.Config, "pip_package", return_true)
     natlink_config_dir, vocola_userdir = vocola_config_setup
@@ -188,11 +198,17 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
 
+    cli.do_V(None)
+    assert cli.Config.status.vocolaIsEnabled() 
+    
+    cli.do_v(vocola_userdir)
+    assert cli.Config.status.vocolaIsEnabled()
+    
 
 def _main():
     """run pytest for this module
     """
-    pytest.main(['test_natlinkconfig.py'])
+    pytest.main(['test_natlinkconfig.py::test_enable_disable_vocola'])
 
  
 if __name__ == "__main__":

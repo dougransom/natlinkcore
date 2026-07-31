@@ -260,9 +260,11 @@ class NatlinkConfig:
  
  
     def prefix_home_appdata(self, dir_path):
-        """if dir_path startswith home directory, replace this with "%personalhome% (instead of "~")
+        r"""if dir_path startswith home directory, replace this with "%personalhome% (instead of "~")
         
         Same if dir_path startswith the path of you local appdata directory, change to %localappdata%.
+        
+        tested in test_prefix_home_appdata (tests\test_natlinkconfig.py)
         """
         home_path = str(Path.home())
         
@@ -462,6 +464,7 @@ class NatlinkConfig:
     def enable_vocola(self, arg):
         """enable vocola, by setting arg (prompting if False), and other settings
         """
+        self.status.refresh()
         vocola_user_dir = self.status.getVocolaUserDirectory()
         if self.status.vocolaIsEnabled(): 
         # if vocola_user_dir and isdir(vocola_user_dir):
@@ -486,7 +489,7 @@ class NatlinkConfig:
             except subprocess.CalledProcessError:
                 logging.info('====\ncould not pip install vocola2\n====\n')
                 return
-        self.status.refresh()   # refresh status
+        # self.status.refresh()   # refresh status
         voc_dir = self.status.getVocolaDirectory()
 
         self.setDirectory('VocolaUserDirectory', arg, section='vocola')
@@ -511,7 +514,7 @@ class NatlinkConfig:
         self.setDirectory('vocoladirectory','vocola2')  #always vocola2
         self.setDirectory('vocolagrammarsdirectory', vocGrammarsDir)
         self.copyUniactionsIncludeFile()
-        
+        self.status.refresh()
 
     def disable_vocola(self, arg=None):
         """disable vocola, arg not needed/used
