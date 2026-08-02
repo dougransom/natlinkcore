@@ -528,7 +528,7 @@ class NatlinkConfig:
     disable_vocola2 = disable_vocola
 
     def copyUniactionsIncludeFile(self):
-        """copy Unimacro include file into Vocola user directory
+        """copy Uniactions include file into Vocola user directory
 
         """
         uscFile = 'Uniactions.vch'

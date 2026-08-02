@@ -575,8 +575,8 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def getVocolaUserDirectory(self):
 
         isdir, abspath = os.path.isdir, os.path.abspath
-        if self.VocolaUserDirectory is not None:
-            return self.VocolaUserDirectory
+        # if not self.VocolaUserDirectory is None:
+        #     return self.VocolaUserDirectory
         key = 'vocolauserdirectory'
         section = 'vocola'
         value =  self.natlinkmain.getconfigsetting(section=section, option=key)
