@@ -150,7 +150,7 @@ v/V     - enable/disable Vocola by setting/clearing VocolaUserDirectory,
           (~ or %HOME% are allowed, for example "~/.natlink/VocolaUser")
 
 b/B     - enable/disable distinction between languages for Vocola user files
-a/A     - enable/disable the possibility to use Unimacro actions in Vocola
+a/A     - enable/disable the possibility to use Uniactions in Vocola
 
 [Unimacro]
 
@@ -530,22 +530,23 @@ logging variable to "DEBUG" or "INFO"
     help_X = help_x
     
     # different Vocola options
+    # this one becomes standard!!!
     def do_b(self, arg):
-        self.message = "Enable Vocola different user directories for different languages"
-        print(f'do action: {self.message}')
-        self.Config.enableVocolaTakesLanguages()
+        self.message = "Enable Vocola different user directories for different languages (do help_b for explanation)"
+        print(f'obsolete option: {self.message}')
+        # self.Config.enableVocolaTakesLanguages()
     def do_B(self, arg):
-        self.message = "Disable Vocola different user directories for different languages"
-        print(f'do action: {self.message}')
-        self.Config.disableVocolaTakesLanguages()
+        self.message = "Disable Vocola different user directories for different languages (do help_b for explanation)"
+        print(f'obsolete option: {self.message}')
+        # self.Config.disableVocolaTakesLanguages()
 
     def do_a(self, arg):
-        self.message = "Enable Vocola taking Unimacro actions"
+        self.message = "Enable Vocola taking Uniactions"
         print(f'do action: {self.message}')
         self.Config.enableVocolaTakesUniactions()
         
     def do_A(self, arg):
-        self.message = "Disable Vocola taking Unimacro actions"
+        self.message = "Disable Vocola taking Uniactions"
         print(f'do action: {self.message}')
         self.Config.disableVocolaTakesUniactions()
 
@@ -560,19 +561,24 @@ the Unimacro actions module (really dtactions)
         
     def help_b(self):
         print('-'*60)
-        print("""----Enable (b)/disable (B) different Vocola User Directories
+        print("""----Obsolete: Enable (b)/disable (B) different Vocola User Directories
 
-If enabled, Vocola will look into a subdirectory "xxx" of
-VocolaUserDirectory IF the language code of the current user speech
-profile is "xxx" and  is NOT "enx".
+This option has been removed; in this version only the "enx" vocola command files
+are (expected to be) in the VocolaUserDirectory.
 
-So for English users this option will have no effect.
+Vocola command files in other languages ("nld", "esp", "deu", "ita", "fra")
+will be located in subdirectories of the VocolaUserDirectory with
+this three letter code as name.
 
-The first time a command file is opened in, for example, a
-Dutch speech profile (language code "nld"), a subdirectory "nld" 
-is created, and all existing Vocola Command files for this Dutch speech profile are copied into this folder.
+This corresponds with the previous strategy of this option switched on!
 
-When you use your English speech profile again, ("enx") the Vocola Command files in the VocolaUserDirectory are taken again.
+Include files will be kept preferably in the base VocolaUserDirectory.
+
+For English users nothing will be changed.
+
+For other language users, the user should ensure the command files are placed
+in the appropriate sub directory of the VocolaUserDirectory.
+
 """)
         print('='*60)
 

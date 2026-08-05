@@ -23,8 +23,8 @@ def vocola_source_dir() ->Path:
 def vocola_config_setup(tmpdir):
   
     tmp_test_root = tmpdir
-
-    natlink_config_dir=tmp_test_root.mkdir('.natlink')
+    # tmp_test_root functions as localappdata!
+    natlink_config_dir=tmp_test_root.mkdir('Natlink')
     natlink_config_file=natlink_config_dir/"natlink.ini"
     vocola_userdir=tmp_test_root.mkdir("vocola_user_directory")
     natlink_usergrammars_dir=tmp_test_root.mkdir("natlink_user_grammars")
@@ -46,6 +46,7 @@ def vocola_config_setup(tmpdir):
     # copy_tree(str(thisDir/"test_sample_vocola_userdir"),str(vocola_userdir))
 
     pytest.MonkeyPatch().setenv("NATLINK_SETTINGSDIR",str(natlink_config_dir))
+    pytest.MonkeyPatch().setenv("localappdata",str(tmp_test_root))
     yield [natlink_config_dir,vocola_userdir]
 
 @pytest.fixture()

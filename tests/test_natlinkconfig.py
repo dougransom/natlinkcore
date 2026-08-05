@@ -193,22 +193,24 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     assert os.path.isdir(natlink_config_dir)
     assert os.path.isdir(vocola_userdir)
     assert os.path.isfile(natlink_config_dir/'natlink.ini')
-    #copy a sample
+
+    #copy a simple sample, only enx files
     copy_tree(str(thisDir/"samples"/"vocola_userdir_1"),str(vocola_userdir))
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
 
+    # basic test with 
     cli.do_V(None)
-    assert cli.Config.status.vocolaIsEnabled() 
+    result = cli.Config.status.vocolaIsEnabled()
+    assert not result   
     
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
     
-
 def _main():
     """run pytest for this module
     """
-    pytest.main(['test_natlinkconfig.py::test_enable_disable_vocola'])
+    pytest.main(['test_natlinkconfig.py'])
 
  
 if __name__ == "__main__":

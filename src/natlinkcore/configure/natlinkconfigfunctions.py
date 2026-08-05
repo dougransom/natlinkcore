@@ -35,6 +35,7 @@ from natlinkcore import tkinter_dialogs
 
 isfile, isdir, join = os.path.isfile, os.path.isdir, os.path.join
 
+
 class NatlinkConfig:
     """performs the configuration tasks of Natlink
     
@@ -526,12 +527,13 @@ class NatlinkConfig:
         self.config_remove('directories', 'vocoladirectory')   #could still be there...
 
     disable_vocola2 = disable_vocola
+    
 
     def copyUniactionsIncludeFile(self):
         """copy Uniactions include file into Vocola user directory
 
         """
-        uscFile = 'Uniactions.vch'
+        uacFile = 'Uniactions.vch'
         # also remove the previous version Unimacro.vch
         # also remove usc.vch from VocolaUserDirectory
         dtactionsDir = Path(self.status.getDtactionsDirectory())
@@ -541,7 +543,7 @@ class NatlinkConfig:
             mess = f'copyUniactionsIncludeFile: dtactionsDir "{str(dtactionsDir)}" is not a directory'
             logging.warning(mess)
             return
-        fromFile = fromFolder/uscFile
+        fromFile = fromFolder/uacFile
         if not fromFile.is_file():
             mess = f'copyUniactionsIncludeFile: file "{str(fromFile)}" does not exist (is not a valid file)'
             logging.warning(mess)
@@ -551,7 +553,7 @@ class NatlinkConfig:
             logging.warning(mess)
             return
         
-        toFile = toFolder/uscFile
+        toFile = toFolder/uacFile
         if toFolder.is_file():
             logging.info(f'remove previous "{str(toFile)}"')
             try:
@@ -561,9 +563,9 @@ class NatlinkConfig:
                 logging.info(mess)
         try:
             shutil.copyfile(fromFile, toFile)
-            logging.info(f'copied "{uscFile}" from "{str(fromFolder)}" to "{str(toFolder)}"')
+            logging.info(f'copied "{uacFile}" from "{str(fromFolder)}" to "{str(toFolder)}"')
         except:
-            mess = f'Could not copy new version of "{uscFile}", from "{str(fromFolder)}" to "{str(toFolder)}"'
+            mess = f'Could not copy new version of "{uacFile}", from "{str(fromFolder)}" to "{str(toFolder)}"'
             logging.warning(mess)
             return
         return
@@ -572,14 +574,14 @@ class NatlinkConfig:
         """remove Unimacro include file from Vocola user directory
 
         """
-        uscFiles = ['Unimacro.vch', 'Uniactions.vch', 'usc.vch']
+        uacFiles = ['Unimacro.vch', 'Uniactions.vch', 'usc.vch']
         # also remove previous files unimacro.vch and usc.vch from VocolaUserDirectory
         toFolder = Path(self.status.getVocolaUserDirectory())
         if not toFolder.is_dir():
             mess = f'removeUniactionsIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
             logging.warning(mess)
             return
-        for f in uscFiles:
+        for f in uacFiles:
             toFile = toFolder/f
             if toFile.is_file():
                 logging.info(f'remove Uniactions include file "{str(toFile)}"')
@@ -594,8 +596,8 @@ class NatlinkConfig:
         
         toFolder set with recursive calls...
         """
-        uscFile = 'Uniactions.vch'
-        oldUscFiles = ['usc.vch', 'Unimacro.vch']
+        uacFile = 'Uniactions.vch'
+        oldUacFiles = ['usc.vch', 'Unimacro.vch']
 ##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
 ##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
         
@@ -607,7 +609,7 @@ class NatlinkConfig:
             
         oldIncludeLines = []
         ### fix change in sub directory here!!! TODO QH
-        for oldInc in oldUscFiles:
+        for oldInc in oldUacFiles:
             oldIncludeLines.append(f'include {oldInc};')
             oldIncludeLines.append(f'include ..\\{oldInc};')
             oldIncludeLines.append(f'include {oldInc};')
@@ -644,24 +646,24 @@ class NatlinkConfig:
 
         return True
 
-    def enableVocolaTakesLanguages(self):
-        """setting registry  so Vocola can divide different languages
-
-        """
-        key = "vocolatakeslanguages"
-        self.config_set('vocola', key, 'True')
-        
-
-    def disableVocolaTakesLanguages(self):
-        """disables so Vocola cannot take different languages
-        """
-        key = "vocolatakeslanguages"
-        self.config_set('vocola', key, 'False')
+    # def enableVocolaTakesLanguages(self):
+    #     """setting registry  so Vocola can divide different languages
+    # 
+    #     """
+    #     key = "vocolatakeslanguages"
+    #     self.config_set('vocola', key, 'True')
+    #     
+    # 
+    # def disableVocolaTakesLanguages(self):
+    #     """disables so Vocola cannot take different languages
+    #     """
+    #     key = "vocolatakeslanguages"
+    #     self.config_set('vocola', key, 'False')
 
     def enableVocolaTakesUniactions(self):
         """do setting, so Vocola can take Unimacro Actions
         also include correct include line in each Vcl file
-        and copy Unimacro.vch to the VocolaUserDirectory
+        and copy Uniactions.vch to the VocolaUserDirectory
 
         """
         key = "VocolaTakesUniactions"

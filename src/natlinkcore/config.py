@@ -265,22 +265,27 @@ When there is nothing to expand, just return the input
 def expand_natlink_settingsdir():
     """Return the location of the natlink config files
     
-    if NATLINK_SETTINGSDIR is set: return this, but... it should end with ".natlink"
-    if NATLINK_SETTINGSDIR is NOT set: return `Path.home()/'.natlink'`
+    if NATLINK_SETTINGSDIR is set: return this, but... it should end with ".natlink" or "Natlink"
+    if NATLINK_SETTINGSDIR is NOT set: return `%localappdata%/'Natlink'`
     """
-    normpath = os.path.normpath
+    normpath, join, isfile = os.path.normpath, os.path.join, os.path.isfile
     nsd = os.getenv('natlink_settingsdir')
     if nsd:
         if not os.path.isdir(nsd):
             # this one should not happen, because .natlink is automatically created when it does not exist yet...
-            raise OSError(f'Environment variable "NATLINK_SETTINGSDIR" should hold a valid directory, ending with ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, and go back to the default directory (~\\.natlink)\n')
+            raise OSError(f'Environment variable "NATLINK_SETTINGSDIR" should hold a valid directory, ending with "Natlink" or ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, and go back to the default directory (%localappdata%\\Natlink)\n')
             
-        if not normpath(nsd).endswith('.natlink'):
-            raise ValueError(f'Environment variable "NATLINK_SETTINGSDIR" should end with ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, returning to the default directory (~\\.natlink)\n')
+        if not (normpath(nsd).endswith('.natlink') or normpath(nsd).endswith('Natlink')):
+            raise ValueError(f'Environment variable "NATLINK_SETTINGSDIR" should end with "Natlink" or ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, returning to the default directory (%localappdata%\\Natlink)\n')
     else:
-        nsd = str(Path.home()/'.natlink')
+        nsd = str('%localappdata%/Natlink')
         
     nsd = normpath(expand_path(nsd))
+    if not os.path.isdir(nsd):
+        raise OSError(f'directory "{nsd}" for Natlink configuration file "natlink.ini" not found, please run "Configure Natlink with GUI" or "Configure Natlink with CLI"')
+    nlini = join(nsd, 'natlink.ini')
+    if not isfile(nlini):
+        print('Warning: file natlink.ini not found in directory: {nsd}, Please run your config program: "Configure Natlink with GUI" or "Configure Natlink with CLI".')
     # if not nsd.endswith('.natlink'):
     #     raise ValueError(f'expand_natlink_settingsdir: directory "{nsd}" should end with ".natlink"\n\tprobably you did not set the windows environment variable "NATLINK_SETTINGSDIR" incorrect, let it end with ".natlink".\n\tNote: if this ".natlink" directory does not exist yet, it will be created there.')
     return nsd
