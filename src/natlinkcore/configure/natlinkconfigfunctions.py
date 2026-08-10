@@ -515,6 +515,8 @@ class NatlinkConfig:
         self.setDirectory('vocoladirectory','vocola2')  #always vocola2
         self.setDirectory('vocolagrammarsdirectory', vocGrammarsDir)
         self.copyUniactionsIncludeFile()
+
+        self.checkUniactionsIncludeLines()  # previous obsolete lines, but also current, with language versions.
         self.status.refresh()
 
     def disable_vocola(self, arg=None):
@@ -591,44 +593,117 @@ class NatlinkConfig:
                     mess = f'copyUniactionsIncludeFile: Could not remove previous version of "{str(toFile)}"'
                     logging.warning(mess)
 
-    def includeUniactionsVchLineInVocolaFiles(self, toFolder=None):
-        """remove the Uniactions wrapper support line into all Vocola command files
+    def checkUniactionsIncludeLines(self):
+        """do an include or a removal of these lines in all current Vocola files
         
-        toFolder set with recursive calls...
+        This should be carried out at enable of Vocola and
+        at change of the option "a", VocolaTakesUniactions
+        
+        Vocola must be enabled.
+        """
+        if not self.status.vocolaIsEnabled():
+            return
+        if self.status.getVocolaTakesUniactions():
+            self.includeUniactionsVchLineInVocolaFiles()
+        else:
+            self.removeUniactionsVchLineInVocolaFiles()
+            
+
+    def includeUniactionsVchLineInVocolaFiles(self, subFolder=None):
+        """include the Uniactions wrapper support line into all Vocola command files
+        
+        Do this for the VocolaUserDirectory and sub directories (of non english languages,
+        "nld", "esp", etc).
+        
+        The call from the natlinkconfig_cli (and therefore natlinkconfig_gui) should be
+        without the subFolder specified.
         """
         uacFile = 'Uniactions.vch'
-        oldUacFiles = ['usc.vch', 'Unimacro.vch']
-##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
-##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
-        
-        # also remove includes of usc.vch
-        if toFolder:
-            pass            # for recursive call language subfolders:
-        else:
-            toFolder = self.status.getVocolaUserDirectory()
+        includeLine = f'include {uacFile};'  # for 'enx' language
+
+        todoFolder = self.status.getVocolaUserDirectory()
+
+        recursive = bool(subFolder)
+        if recursive:
+            # recursive call, non enx directories:
+            includeLine = f'include ..\\{uacFile};'
+            todoFolder = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return False
             
-        oldIncludeLines = []
-        ### fix change in sub directory here!!! TODO QH
-        for oldInc in oldUacFiles:
-            oldIncludeLines.append(f'include {oldInc};')
-            oldIncludeLines.append(f'include ..\\{oldInc};')
-            oldIncludeLines.append(f'include {oldInc};')
-            oldIncludeLines.append(f'include ..\\{oldInc};')
-            oldIncludeLines.append(f'include ../{oldInc};')
-            oldIncludeLines.append(f'include ../{oldInc};')
-            
-        if not os.path.isdir(toFolder):
-            mess = f'cannot find Vocola command files directory, not a valid path: {toFolder}'
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
             logging.warning(mess)
             return mess
         nFiles = 0
-        for f in os.listdir(toFolder):
-            F = os.path.join(toFolder, f)
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl"):
+                got_include_line = False
+                Output = []
+                for line in open(F, 'r'):
+                    line = line.rstrip()
+                    if line.strip() == includeLine:
+                        got_include_line = True
+                    
+                    Output.append(line)
+                Output.append('')
+                if not got_include_line:
+                    Output.insert(0, includeLine)
+                    open(F, 'w').write('\n'.join(Output))
+                    nFiles += 1
+            elif len(f) == 3:
+                changedFiles = self.includeUniactionsVchLineInVocolaFiles(subFolder=f)
+                nFiles  += changedFiles
+        # self.disableVocolaTakesUniactions()
+        if recursive:
+            return nFiles
+        
+        if not recursive:
+            mess = f'changed {nFiles} files in {todoFolder} and sub folders'
+            logging.warning(mess)
+
+        return True
+
+    def removeUniactionsVchLineInVocolaFiles(self, subFolder=None):
+        """remove the Uniactions wrapper support line into all Vocola command files
+        
+        remove all include lines to "Uniactions.vch" and previous names of this file.
+        
+        Do this for safety before includeUniactionsVchLineInVocolaFiles!
+        
+        todoFolder is called with recursive calls when language sub directories exist...
+        """
+        uacFiles = ['Uniactions.vch', 'usc.vch', 'Unimacro.vch']
+        
+        # also remove includes of usc.vch
+        todoFolder = self.status.getVocolaUserDirectory()
+        recursive = bool(subFolder)
+            
+        toRemoveLines = []
+        for inc in uacFiles:
+            toRemoveLines.append(f'include {inc};')
+            toRemoveLines.append(f'include ..\\{inc};')
+            toRemoveLines.append(f'include ../{inc};')
+
+        if recursive:
+            # language subfolder
+            todoFolder  = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return True
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
+            logging.warning(mess)
+            return False
+        nFiles = 0
+        
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
             if f.endswith(".vcl"):
                 changed = 0
                 Output = []
                 for line in open(F, 'r'):
-                    for oldLine in oldIncludeLines:
+                    for oldLine in toRemoveLines:
                         if line.strip().lower() == oldLine.lower():
                             changed = 1
                             break
@@ -639,10 +714,13 @@ class NatlinkConfig:
                     open(F, 'w').write(''.join(Output))
                     nFiles += 1
             elif len(f) == 3:
-                self.includeUniactionsVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
+                result  = self.removeUniactionsVchLineInVocolaFiles(subFolder=f)
+                if isinstance(result, int):
+                    nFiles += result
         # self.disableVocolaTakesUniactions()
-        mess = f'removed include lines from {nFiles} files in {toFolder}'
-        logging.warning(mess)
+        if not recursive:
+            mess = f'changed {nFiles} files in {todoFolder} and sub folders'
+            logging.warning(mess)
 
         return True
 
@@ -662,11 +740,16 @@ class NatlinkConfig:
 
     def enableVocolaTakesUniactions(self):
         """do setting, so Vocola can take Unimacro Actions
-        also include correct include line in each Vcl file
-        and copy Uniactions.vch to the VocolaUserDirectory
-
+        
+        1. copy the include file "Uniactions.vch" to the VocolaUserDirectory
+        2. insert an include line in each vocola command file
+           (and if needed remove older variants of the include file line)
         """
         key = "VocolaTakesUniactions"
+        if not self.status.vocolaIsEnabled():
+            print('\n==========================\nenableVocolaTakesUniactions: Vocola is not enabled, please enable Vocola first!\n')
+            return
+        
         self.config_set('vocola', key, 'True')
         self.includeUniactionsVchLineInVocolaFiles()
         # remove previous versions...
@@ -678,8 +761,13 @@ class NatlinkConfig:
         and remove Uniactions.vch and the include lines in each .vcl file
         """
         key = "VocolaTakesUniactions"
+
+        if not self.status.vocolaIsEnabled():
+            print('\n==========================\ndisableVocolaTakesUniactions: Vocola is not enabled, please enable Vocola first!\n')
+            return
+
         self.config_set('vocola', key, 'False')
-        self.includeUniactionsVchLineInVocolaFiles()
+        self.removeUniactionsVchLineInVocolaFiles()
         self.removeUniactionsIncludeFile()
         
     def openConfigFile(self):

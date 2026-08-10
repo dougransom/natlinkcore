@@ -742,16 +742,20 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def getVocolaTakesLanguages(self):
         """gets and value for distinction of different languages in Vocola
         If Vocola is not enabled, this option will also return False
+        
+        Obsolete option, always True.
         """
-        key = 'vocolatakeslanguages'
-        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        return True
+        # key = 'vocolatakeslanguages'
+        # return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
     
     def getVocolaTakesUniactions(self):
         """gets and value for optional Vocola takes Uniactions (from dtactions)
             Always return True
         """
         key = 'VocolaTakesUniactions'
-        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        result = self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        return result
 
     
     def getInstallVersion(self):

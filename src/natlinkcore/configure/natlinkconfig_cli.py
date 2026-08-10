@@ -532,11 +532,11 @@ logging variable to "DEBUG" or "INFO"
     # different Vocola options
     # this one becomes standard!!!
     def do_b(self, arg):
-        self.message = "Enable Vocola different user directories for different languages (do help_b for explanation)"
+        self.message = 'Enable Vocola different user directories for different languages (do "help b" for explanation)'
         print(f'obsolete option: {self.message}')
         # self.Config.enableVocolaTakesLanguages()
     def do_B(self, arg):
-        self.message = "Disable Vocola different user directories for different languages (do help_b for explanation)"
+        self.message = 'Disable Vocola different user directories for different languages (do "help b" for explanation)'
         print(f'obsolete option: {self.message}')
         # self.Config.disableVocolaTakesLanguages()
 
