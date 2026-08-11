@@ -758,7 +758,8 @@ class NatlinkConfig:
 
     def disableVocolaTakesUniactions(self):
         """disables this option, so Vocola does not take Uniactions any more
-        and remove Uniactions.vch and the include lines in each .vcl file
+        
+        Remove "Uniactions.vch" and the include lines in each .vcl file
         """
         key = "VocolaTakesUniactions"
 

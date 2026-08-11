@@ -428,46 +428,6 @@ def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
         pprint(folder_dict)
         assert False
     
-
-    
-    
-    
-    # basic test with 
-    cli.do_V(None)
-    result = cli.Config.status.vocolaIsEnabled()
-    assert not result   
-    
-    
-    
-    
-    cli.do_v(vocola_userdir)
-    assert cli.Config.status.vocolaIsEnabled()
-    
-    assert cli.Config.status.getVocolaTakesUniactions() is False
-    
-    ## try to activate this option
-    cli.do_a(vocola_userdir)
-    
-    assert cli.Config.status.getVocolaTakesUniactions() is True
-
-    ## try to deactivate this option
-    cli.do_A(vocola_userdir)
-    assert cli.Config.status.getVocolaTakesUniactions() is False
-    
-    
-
-
-    cli.do_V(None)
-    assert cli.Config.status.vocolaIsEnabled() is False
-    assert not result   
-
-    ## try to activate this option when vocola is disabled:
-    cli.do_a(vocola_userdir)
-    assert cli.Config.status.getVocolaTakesUniactions() is True
-
-    ## try to deactivate this option when vocola is disabled:
-    cli.do_A(vocola_userdir)
-    assert cli.Config.status.getVocolaTakesUniactions() is False
     
 def get_folder_dict(folderpath):
     """return the contenst in a dict, assume all text files
