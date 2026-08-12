@@ -406,7 +406,8 @@ def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
     assert not isfile(includeFile)
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
-    assert isfile(includeFile)  # should have been copied, irrespective of the VocolaTakesUniactions option
+    # includeFile should have been copied, irrespective of the VocolaTakesUniactions
+    assert isfile(includeFile)  
     result = cli.Config.status.getVocolaTakesUniactions()
     assert result is False
     
@@ -427,6 +428,7 @@ def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
         
         pprint(folder_dict)
         assert False
+    
     
     
 def get_folder_dict(folderpath):

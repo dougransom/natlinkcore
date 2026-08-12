@@ -97,11 +97,18 @@ class NatlinkConfig:
                         continue
                     ## allow environment variables (or ~) in directory
                     directory_expanded = expand_path(directory)
+                    if not directory_expanded:
+                        print(f'*** from_config_parser: skip "{directory}" ("{name}"):')
+                        print('*** does not expand to a valid directoryirectory')
+                        print('*** Skip this directory for now.')
+                        print('*** Run your config program "Configure Natlink with GUI" or "Configure Natlink with CLI')
+                        continue
+                        
                     if not os.path.isdir(directory_expanded):
-                        print (f'from_config_parser: skip "{directory}" ("{name}"): is not a valid directory' if 
-                            directory_expanded == directory 
-                        else
-                            f'from_config_parser: skip "{directory}" ("{name}"):\n\texpanded to directory "{directory_expanded}" is not a valid directory')
+                        print (f'*** from_config_parser: skip "{directory}" ("{name}"): does not expand')
+                        print(f'*** to a valid directory {directory_expanded}.')
+                        print('*** Skip this directory for now.')
+                        print('*** Run your config program "Configure Natlink with GUI" or "Configure Natlink with CLI')
                         continue
                     directories.append(directory_expanded)
 
@@ -178,15 +185,19 @@ When there is nothing to expand, just return the input
         home_expanded = home + input_dir[1:]
         # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
         if must_exist:
-            assert isdir(home_expanded)
+            if not isdir(home_expanded):
+                print(f'\n*** Error: directory does not exist: "{input_dir}"\n*** Expanded to "{home_expanded}"\n***\n')
+                return ''
         return normpath(home_expanded)
 
     if input_dir.startswith('%'):
-        input_dir = expandvars(input_dir)
+        input_dir2 = expandvars(input_dir)
         # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
         if must_exist:
-            assert isdir(input_dir)
-        return normpath(input_dir)
+            if not isdir(input_dir2):
+                print(f'\n*** Error: directory does not exist: "{input_dir}"\n*** Expanded to "{input_dir2}"\n***\n')
+                return ''  
+        return normpath(input_dir2)
     
     
     

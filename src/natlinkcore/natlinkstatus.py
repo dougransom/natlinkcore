@@ -89,7 +89,7 @@ getVocolaGrammarsDirectory: get the directory, where the compiled Vocola grammar
     This will be the `CompiledGrammars` subdirectory of `~/.vocolaGrammars` or
     `%NATLINK_SETTINGSDIR%/.vocola`.
 
-getVocolaTakesLanguages: additional settings for Vocola
+getVocolaTakesLanguages: additional settings for Vocola, now obsolete: always True
 
 new 2014/2022
 getDNSName: return "NatSpeak" for versions <= 11 and "Dragon" for 12 (on) (obsolete in 2022)
@@ -787,7 +787,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
                     'DNSName', 'NatlinkIni', 'Natlink_Settingsdir',
                     'UnimacroDirectory', 'UnimacroUserDirectory', 'UnimacroGrammarsDirectory', 'UnimacroDataDirectory',
                     'VocolaDirectory', 'VocolaUserDirectory', 'VocolaGrammarsDirectory',
-                    'VocolaTakesLanguages', 'VocolaTakesUniactions',
+                    'VocolaTakesUniactions',
                     'UserDirectory',
                     'DragonflyDirectory', 'DragonflyUserDirectory',
                     'ExtraGrammarDirectories',
@@ -845,14 +845,14 @@ class NatlinkStatus(metaclass=singleton.Singleton):
         if D['vocolaIsEnabled']:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is enabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
-                        'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaGrammarsDirectory', 
                         'VocolaTakesUniactions',
                         ):
                 self.appendAndRemove(L, D, key)
         else:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is disabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
-                        'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaGrammarsDirectory', 
                         'VocolaTakesUniactions'
                         ):
                 del D[key]

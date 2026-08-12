@@ -131,7 +131,9 @@ def test_expand_path(mock_syspath,mock_settingsdir):
     #use only directories that we know will be available when running the test.
     #we put a few packages in mock_packages subfolder and we know pytest must  be installed to be running this test.
 
-
+    result=expand_path("%localappdata%")
+    assert os.path.isdir(result)
+    
     result=expand_path('fake_package1')
     assert os.path.isdir(result)
 

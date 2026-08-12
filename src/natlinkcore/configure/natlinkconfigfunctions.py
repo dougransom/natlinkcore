@@ -20,14 +20,16 @@ import os
 import shutil
 import sys
 import subprocess
-from pprint import pformat
+from pprint import pformat, pprint
 from pathlib import Path
 import configparser
 import logging
 try:
     from natlinkcore import natlinkstatus
 except OSError:
-    print('error when starting natlinkconfigfunctions')
+    print('Error when starting natlinkconfigfunctions, cannot import natlinkstatus')
+    pprint(sys.path)
+    print('-'*80)
 from natlinkcore import config
 from natlinkcore import loader
 from natlinkcore import readwritefile
@@ -108,6 +110,14 @@ class NatlinkConfig:
                 pass
         except KeyError:
             pass
+
+        section = 'vocola'
+        option = 'vocolatakeslanguages '
+        try:
+            value = self.Config[section][option]
+            self.config_remove(section, option)
+        except KeyError:
+            pass
         
         if loader.had_msg_error:
             logging.error('The environment variable "NATLINK_USERDIR" has been changed to "NATLINK_SETTINGSDIR" by the user, but has a conclicting value')
@@ -116,6 +126,8 @@ class NatlinkConfig:
         if loader.had_msg_warning:
             logging.error('The key of the environment variable "NATLINK_USERDIR" should be changed to "NATLINK_SETTINGSDIR".')
             logging.error('You can do so in windows "environment variables", dialog "User variables".')
+            
+        
             
             
         # for key, value in self.Config[section].items():

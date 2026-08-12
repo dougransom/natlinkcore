@@ -253,8 +253,15 @@ class NatlinkMain(metaclass=Singleton):
 
     @staticmethod
     def _add_dirs_to_path(directories: Iterable[str]) -> None:
+        isdir = os.path.isdir
         for d in directories:
             d_expanded = expand_path(d)
+            if not isdir(d_expanded):
+                print('*** Invalid directory in configured directories of Natlink.ini.')
+                print(f'*** "{d}", expanded: "{d_expanded}"')
+                print('*** Skip for now, but please run the Config program:')
+                print('*** Configure Natlink with GUI or Configure Natlink with CLI.')
+                continue
             if d_expanded not in sys.path:
                 sys.path.insert(0, d_expanded)
 
@@ -650,18 +657,22 @@ had_msg_warning = False
 def config_locations() -> Iterable[str]:
     """give two possible locations, the wanted and the "fallback" location
     
-    wanted: in the '.natlink' subdirectory of `home` or in "NATLINK_USERDIR", this variable is
+    wanted: in the 'Natlink' subdirectory of `localappdata` or in "NATLINK_USERDIR", this variable is
     going to be replaced by "NATLINK_SETTINGSDIR".
     name is always 'natlink.ini'
+    
+    (Before, releases 5.?.? default was home (%personalhome%) with subdirectory '.natlink'
     
     the fallback location is in the installed files, and provides the frame for the config file.
     with the configurenatlink (natlinkconfigfunction.py or configfurenatlink.pyw) the fallback version
     of the config file is copied into the wanted location.
     """
     global had_msg_warning, had_msg_error
-    join, expanduser, getenv, isfile = os.path.join, os.path.expanduser, os.getenv, os.path.isfile
-    home = expanduser('~')
-    config_sub_dir = '.natlink'
+    join, expandvars, getenv, isfile = os.path.join, os.path.expandvars, os.getenv, os.path.isfile
+
+    ## new location for release 6 (Natlink, Natlinkcore)
+    localappdata = expandvars('%localappdata%')
+    config_sub_dir = 'Natlink'
     natlink_inifile = 'natlink.ini'
     fallback_config_file = join(get_natlinkcore_dirname(), "DefaultConfig", natlink_inifile)
     if not isfile(fallback_config_file):
@@ -691,8 +702,8 @@ def config_locations() -> Iterable[str]:
         nl_settings_file = join(nl_settings_dir, natlink_inifile)
         return [nl_settings_file, fallback_config_file]
 
-    # choose between .natlink/natlink.ini in home or the fallback_directory:         
-    return [join(home, config_sub_dir, natlink_inifile), fallback_config_file]
+    # choose between localappdata/Natlink/natlink.ini or the fallback_directory:         
+    return [join(localappdata, config_sub_dir, natlink_inifile), fallback_config_file]
 
 def startDap(config : NatlinkConfig) -> bool:
     """
