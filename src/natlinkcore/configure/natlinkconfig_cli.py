@@ -552,10 +552,10 @@ logging variable to "DEBUG" or "INFO"
 
     def help_a(self):
         print('-'*60)
-        print("""----Enable (a)/disable (A) Vocola taking Unimacro actions.
+        print("""----Enable (a)/disable (A) Vocola taking Uniactions.
         
-These actions (Unimacro Shorthand Commands) and "meta actions" are processed by
-the Unimacro actions module (really dtactions)
+These actions (Uniactions Shorthand Commands) and "meta actions" are processed by
+the Uniactions module (in repository dtactions)
 """)
         print('='*60)
         
