@@ -231,7 +231,8 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
    # check new state:
     folder_dict = get_folder_dict(vocola_userdir)
     exp_dict_uniactions = copy.copy(folder_dict)
-    exp_dict_uniactions['Uniactions.vch'] = '403 lines'  # only vch include file added in directory
+    assert exp_dict_uniactions.get('Uniactions.vch') == '> 20 lines'  # only vch include file added in directory
+
 
     if exp_dict_uniactions != folder_dict:
         print('\n=================================\n')
@@ -287,7 +288,7 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
 
     folder_dict = get_folder_dict(vocola_userdir)
 
-    exp_dict_includeline = {'Uniactions.vch': '403 lines',
+    exp_dict_includeline = {'Uniactions.vch':  '> 20 lines',
                            '_vocola.vcl': ['include Uniactions.vch;',
                                          '# vocola file for alternate language: enx',
                                          'Paste Test = HeardWord("Paste", "Box");',
@@ -356,8 +357,10 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     cli.do_A(vocola_userdir)
     assert cli.Config.status.getVocolaTakesUniactions() is False
     
-def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
-    """check if the include lines are inserted/deleted with the option a/A
+def test_vocola_include_lines_take_uniactions_on(vocola_config_setup, cli, monkeypatch):
+    """check if the include lines are inserted/deleted with the option v (enable vocola)
+    
+    When vocola is enabled and the option vocolatakesuniactions is ON, the include lines should be there
 
     it is about the functions: includeUniactionsVchLineInVocolaFiles and removeUniactionsVchLineInVocolaFiles
     in natlinkconfigfunctions.py.
@@ -365,7 +368,6 @@ def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
     ASSUME: vocola is already a valid module!!! in this test pipping the package vocola2
             is skipped...
     """
-    join, isfile = os.path.join, os.path.isfile
     monkeypatch.setattr(cli.Config, "pip_package", return_true)
     natlink_config_dir, vocola_userdir = vocola_config_setup
     print(f'natlink_config_dir: {natlink_config_dir}')
@@ -377,59 +379,102 @@ def test_vocola_include_lines(vocola_config_setup, cli, monkeypatch):
     #copy a sample enx and nld, which should end up in empty files or files
     #only containting the wanted include line...
     copy_tree(str(thisDir/"samples"/"vocola_userdir_2"),str(vocola_userdir))
-    
+    cli.Config.config_set('vocola', 'vocolatakesuniactions', True)
+   
+   
+    cli.do_v(vocola_userdir)
+    assert cli.Config.status.vocolaIsEnabled()
+
+    exp_dict = {'Uniactions.vch': '> 20 lines',
+ 'empty.vcl': ['include Uniactions.vch;'],
+ 'nld---empty_nld.vcl': ['include ..\\Uniactions.vch;'],
+ 'nld---oldlines_nld.vcl': ['include ..\\Uniactions.vch;'],
+ 'oldlines.vcl': ['include Uniactions.vch;']}
     folder_dict = get_folder_dict(vocola_userdir)
-    # should be equal to above directory vocola_userdir_2
-    exp_dict = {'empty.vcl': [],
-    'nld---empty_nld.vcl': [],
-    'nld---oldlines_nld.vcl': ['include Unimacro.vch;',
-                               'include ../Unimacro.vch;',
-                               'include usc.vch;',
-                               'include Uniactions.vch;'],
-    'oldlines.vcl': ['include Unimacro.vch;',
-                     'include ../Unimacro.vch;',
-                     'include usc.vch;',
-                     'include Uniactions.vch;',
-                     'include Unimacro.vch;']}
-                
+
+
     if exp_dict != folder_dict:
         print('\n=================================\n')
-        print('AT START OF test_vocola_include_lines:')
-        print('If this is the correct start content of vocola_userdir')
+        print('AFTER enable vocola with option vocolatakesuniactions ON:')
+        print('If this is the correct content of vocola_userdir now')
         print('please change your test file above accordingly\n')
 
         pprint(folder_dict)
         assert False
 
-    assert cli.Config.status.vocolaIsEnabled() is False
-    includeFile = join(vocola_userdir, 'Uniactions.vch')
-    assert not isfile(includeFile)
+def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monkeypatch):
+    """check if the include lines are correctly deleted when option vocolatakesuniactions is initially OFF
+
+    it is about the functions: includeUniactionsVchLineInVocolaFiles and removeUniactionsVchLineInVocolaFiles
+    in natlinkconfigfunctions.py.
+
+    ASSUME: vocola is already a valid module!!! in this test pipping the package vocola2
+            is skipped...
+    """
+    monkeypatch.setattr(cli.Config, "pip_package", return_true)
+    natlink_config_dir, vocola_userdir = vocola_config_setup
+    print(f'natlink_config_dir: {natlink_config_dir}')
+    print(f'vocola_userdir: {vocola_userdir}')
+    assert os.path.isdir(natlink_config_dir)
+    assert os.path.isdir(vocola_userdir)
+    assert os.path.isfile(natlink_config_dir/'natlink.ini')
+
+
+    copy_tree(str(thisDir/"samples"/"vocola_userdir_2"),str(vocola_userdir))
+    
+    # There we go:
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
     # includeFile should have been copied, irrespective of the VocolaTakesUniactions
-    assert isfile(includeFile)  
-    result = cli.Config.status.getVocolaTakesUniactions()
-    assert result is False
-    
     
     folder_dict = get_folder_dict(vocola_userdir)
     
-    exp_dict = {'Uniactions.vch': '403 lines',
-                'empty.vcl': [],
-                'nld---empty_nld.vcl': [],
-                'nld---oldlines_nld.vcl': [],
-                'oldlines.vcl': []}  
-    
+    exp_dict = {'empty.vcl': [],
+ 'nld---empty_nld.vcl': [],
+ 'nld---oldlines_nld.vcl': [],
+ 'oldlines.vcl': []}
     
     if exp_dict != folder_dict:
         print('\n=================================\n')
-        print('AFTER do_v: if this is the correct content of vocola_userdir in this state')
-        print('Please change your test file accordingly\n')
+        print('AFTER enable vocola with option vocolatakesuniactions OFF:')
+        print('If this is the correct content of vocola_userdir now')
+        print('please change your test file above accordingly\n')
+
+        pprint(folder_dict)
+        assert False
         
+    # this should not change anything: (disabling vocolatakesuniactions (again))        
+    cli.do_A(None)
+    folder_dict = get_folder_dict(vocola_userdir)
+    
+    exp_dict = {'empty.vcl': [],
+ 'nld---empty_nld.vcl': [],
+ 'nld---oldlines_nld.vcl': [],
+ 'oldlines.vcl': []}
+    
+    assert exp_dict == folder_dict
+    
+    # now enable vocolatakesuniactions:
+    cli.do_a(None)
+    folder_dict = get_folder_dict(vocola_userdir)
+    
+    exp_dict = {'Uniactions.vch': '> 20 lines',
+ 'empty.vcl': ['include Uniactions.vch;'],
+ 'nld---empty_nld.vcl': ['include ..\\Uniactions.vch;'],
+ 'nld---oldlines_nld.vcl': ['include ..\\Uniactions.vch;'],
+ 'oldlines.vcl': ['include Uniactions.vch;']}
+    
+    if exp_dict != folder_dict:
+        print('\n=================================\n')
+        print('AFTER setting option vocolatakesuniactions to ON:')
+        print('If this is the correct content of vocola_userdir now')
+        print('please change your test file above accordingly\n')
+
         pprint(folder_dict)
         assert False
     
     
+   
     
 def get_folder_dict(folderpath):
     """return the contenst in a dict, assume all text files
@@ -448,7 +493,7 @@ def get_folder_dict(folderpath):
         for fi in files:
             with open(join(dirpath, fi), 'r', encoding='utf-8') as f:
                 lines = [line.rstrip(' \n') for line in f if line.strip()]
-            D[key_prefix + fi] = lines if len(lines) < 10 else f'{len(lines)} lines'
+            D[key_prefix + fi] = lines if len(lines) <= 20 else '> 20 lines'
             
     return D
     
@@ -456,9 +501,9 @@ def _main():
     """run pytest for this module
     """
     # pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_include_lines'])
-    pytest.main(['-s', 'test_natlinkconfig.py'])
+    pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_include_lines_take_uniactions_off'])
 
  
 if __name__ == "__main__":
-    _main()
+    _main() 
 

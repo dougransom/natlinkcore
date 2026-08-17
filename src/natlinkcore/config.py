@@ -99,7 +99,7 @@ class NatlinkConfig:
                     directory_expanded = expand_path(directory)
                     if not directory_expanded:
                         print(f'*** from_config_parser: skip "{directory}" ("{name}"):')
-                        print('*** does not expand to a valid directoryirectory')
+                        print('*** does not expand to a valid directory')
                         print('*** Skip this directory for now.')
                         print('*** Run your config program "Configure Natlink with GUI" or "Configure Natlink with CLI')
                         continue
