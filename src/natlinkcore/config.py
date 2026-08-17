@@ -66,7 +66,7 @@ class NatlinkConfig:
         return dirs
 
     @staticmethod
-    def from_config_parser(config: configparser.ConfigParser, config_path: str) -> 'NatlinkConfig':
+    def from_config_parser(config: configparser.ConfigParser, config_path: str, silent: bool = None) -> 'NatlinkConfig':
         ret = NatlinkConfig.get_default_config()
         ret.config_path = config_path
         sections = config.sections()
@@ -94,6 +94,7 @@ class NatlinkConfig:
                     if directory.find('site-packages') > 0:
                         package_name = Path(directory).stem
                         print(f'====Invalid input in configuration file "natlink.ini", section "directories":\n\tSkip name: {name}, directory: {directory}\n\tWhen you want to include a directory in site-packages, only specify the package name "{package_name}"')
+                        print('*** Please edit your "natlink.ini" file manually!')
                         continue
                     ## allow environment variables (or ~) in directory
                     directory_expanded = expand_path(directory)
@@ -101,14 +102,14 @@ class NatlinkConfig:
                         print(f'*** from_config_parser: skip "{directory}" ("{name}"):')
                         print('*** does not expand to a valid directory')
                         print('*** Skip this directory for now.')
-                        print('*** Run your config program "Configure Natlink with GUI" or "Configure Natlink with CLI')
+                        print('*** Please edit your "natlink.ini" file manually!')
                         continue
                         
                     if not os.path.isdir(directory_expanded):
                         print (f'*** from_config_parser: skip "{directory}" ("{name}"): does not expand')
                         print(f'*** to a valid directory {directory_expanded}.')
                         print('*** Skip this directory for now.')
-                        print('*** Run your config program "Configure Natlink with GUI" or "Configure Natlink with CLI')
+                        print('*** Please edit your "natlink.ini" file manually!')
                         continue
                     directories.append(directory_expanded)
 
@@ -192,6 +193,9 @@ When there is nothing to expand, just return the input
 
     if input_dir.startswith('%'):
         input_dir2 = expandvars(input_dir)
+        if input_dir2.startswith('%'):
+            print(f'\n*** Error: expand_path of "{input_dir}" does not work, result is still the same')
+            return ''
         # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
         if must_exist:
             if not isdir(input_dir2):

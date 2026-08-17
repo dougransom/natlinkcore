@@ -54,11 +54,11 @@ class NatlinkConfig:
         self.config_dir = str(Path(self.config_path).parent)
         self.status = natlinkstatus.NatlinkStatus()
         self.Config = self.getConfig()  # get the config instance of config.NatlinkConfig
-        self.check_config()
         # for convenience in other places:
         self.home_path = str(Path.home())
         self.documents_path = str(Path.home()/'Documents')
         self.natlinkconfig_path = config.expand_natlink_settingsdir()
+
         pass
     
     def get_check_config_locations(self):
@@ -112,12 +112,32 @@ class NatlinkConfig:
             pass
 
         section = 'vocola'
-        option = 'vocolatakeslanguages '
+        option = 'vocolatakeslanguages'
         try:
             value = self.Config[section][option]
             self.config_remove(section, option)
         except KeyError:
             pass
+        
+        section = 'vocola'
+        old_option = 'vocolatakesunimacroactions'
+        new_option = 'vocolatakesuniactions'
+        try:
+            old_value = self.Config[section][old_option]
+            self.config_remove(section, old_option)
+        except KeyError:
+            pass
+        else:
+            try:
+                _new_value = self.Config[section][new_option]
+            except KeyError:
+                self.config_set(section, new_option, old_value)
+            
+        pass
+    
+        
+        
+        
         
         if loader.had_msg_error:
             logging.error('The environment variable "NATLINK_USERDIR" has been changed to "NATLINK_SETTINGSDIR" by the user, but has a conclicting value')

@@ -655,6 +655,7 @@ def main_cli():
             Cli = CLI()
             
         Cli.Config = natlinkconfigfunctions.NatlinkConfig(extra_pip_options=extra_pip_options)
+        Cli.Config.check_config()
         Cli.info = ""
         print('\nWelcome to the NatlinkConfig Command Line Interface\n')
         print('Type "I" for manual editing the "natlink.ini" config file\n')
