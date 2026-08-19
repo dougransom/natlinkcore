@@ -117,9 +117,6 @@ from natlinkcore import singleton
 # # # natlinkmain = loader.NatlinkMain()
 
 ## setting up Logger and Config is needed, when running this for test:
-Logger = logging.getLogger('natlink')
-Config = config.NatlinkConfig.from_first_found_file(loader.config_locations())
-natlinkmain = loader.NatlinkMain(Logger, Config)
 
 # the possible languages (for get_language), now in loader
 
@@ -150,6 +147,10 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def __init__(self):
         """initialise all instance variables, in this singleton class, (only one instance)
         """
+        Logger = logging.getLogger('natlink')
+        Config = config.NatlinkConfig.from_first_found_file(loader.config_locations())
+        natlinkmain = loader.NatlinkMain(Logger, Config)
+
         self.natlinkmain = natlinkmain  # global
         self.DNSVersion = None
         self.DNSIniDir = None
