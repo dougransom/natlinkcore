@@ -372,7 +372,7 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     cli.do_A(vocola_userdir)
     assert cli.Config.status.getVocolaTakesUniactions() is False
     
-def test_vocola_include_lines_take_uniactions_on(vocola_config_setup, cli, monkeypatch):
+def test_vocola_include_lines_take_uniactions_on_and_off(vocola_config_setup, cli, monkeypatch):
     """check if the include lines are inserted/deleted with the option v (enable vocola)
     
     When vocola is enabled and the option vocolatakesuniactions is ON, the include lines should be there
@@ -467,7 +467,14 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
  'nld---oldlines_nld.vcl': [],
  'oldlines.vcl': []}
     
-    assert exp_dict == folder_dict
+    if exp_dict != folder_dict:
+        print('\n=================================\n')
+        print('AFTER enable vocola with option vocolatakesuniactions OFF:')
+        print('If this is the correct content of vocola_userdir now')
+        print('please change your test file above accordingly\n')
+
+        pprint(folder_dict)
+        assert False
     
     # now enable vocolatakesuniactions:
     cli.do_a(None)
@@ -487,9 +494,23 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
 
         pprint(folder_dict)
         assert False
+
     
+def test_vocola_correctLineUsc():
+    """testing commenting out or uncommenting Uniaction lines, in use by Vocola configuration
     
-   
+    for function: _correctLineUsc
+    
+    """
+    nc = natlinkconfigfunctions.NatlinkConfig()
+    uscIsOn = True
+    line = 'Date = DATE1(%m/%d/%Y) ;'
+
+    line2 = nc.CorrectLineUsc(line, uscIsOn)
+    assert line == line2
+    line3 = nc.CorrectLineUsc(line2, False)
+    assert "#Usc#" + line == line3 
+    
     
 def get_folder_dict(folderpath):
     """return the contenst in a dict, assume all text files
