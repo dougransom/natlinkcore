@@ -849,7 +849,7 @@ class NatlinkConfig:
 
         return True
  
-    def CorrectLineUsc(self, line, uscIsOn):
+    def CorrectLineUsc(self, lines, uscIsOn):
         """correct vocola line, depending on the uscIsOn variable
         
         tests in test_vocola_regular_expressions (test_natlinkconfig.py)
@@ -869,39 +869,45 @@ class NatlinkConfig:
         
         reOldPrefix = re.compile(f'\b(Unimacro)[(]')
         Comment = "#Usc#"
-        if line.startswith('include'):
-            return line
-        
+        Output = []
         if uscIsOn:
-            if line.startswith(Comment):
-                line = line[5:]
-                # change Unimacro as prefix of a Usc command:
-                com, act = line.split('=', 1)
-                m = reOldPrefix.search(act)
-                if m:
-                    act2 = m.sub(r'\1', 'Usc')
-                    line2 = f'{com}={act2}'
-                    return line2
-                return line
-            ## other line:
-            return line
+            if isinstance(lines, str):
+                lines = [lines]
+            for line in lines:
+                if line.startswith(Comment):
+                    line = line[5:]
+                    # change Unimacro as prefix of a Usc command:
+                    com, act = line.split('=', 1)
+                    m = reOldPrefix.search(act)
+                    if m:
+                        act2 = m.sub(r'\1', 'Usc')
+                        line2 = f'{com}={act2}'
+                        Output.append(line2)
+                    else:
+                        Output.append(line)
+                else:
+                    Output.append(line)
+            return '\n'.join(lines)
         ### USC NOT ON:
+        if isinstance(lines, str):
+            lines = [lines]
+        line = '\n'.join(lines)
         if not line.strip():
             return line
-        if line.startswith('#'):
-            return line
-        if line.find('=') == -1:
-            return line
-        commandPart = line.split('=', 1)[1]
-        m = reOldPrefix.search(commandPart)
+        # 
+        # if line.startswith('#'):
+        #     return line
+        # if line.find('=') == -1:
+        #     return line
+        # commandPart = line.split('=', 1)[1]
+        m = reOldPrefix.search(line)
 
         if m:
             line = m.sub('\1', 'Usc')
-        m = reUsc.search(commandPart)
+        m = reUsc.search(line)
         if m:
-            line = Comment + line
-            return line
-        return line
+            lines = [Comment + l for l in lines if not l.startswith(Comment)]
+        return '\n'.join(lines)
                     
         
 

@@ -499,7 +499,8 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
 def test_vocola_correctLineUsc():
     """testing commenting out or uncommenting Uniaction lines, in use by Vocola configuration
     
-    for function: _correctLineUsc
+    Take multiline commands into consi
+    for function: correctLineUsc
     
     """
     nc = natlinkconfigfunctions.NatlinkConfig()
@@ -510,6 +511,41 @@ def test_vocola_correctLineUsc():
     assert line == line2
     line3 = nc.CorrectLineUsc(line2, False)
     assert "#Usc#" + line == line3 
+    
+
+    lines_no_usc = ['multiple = ', 'Hello_world;']
+    result = nc.CorrectLineUsc(lines_no_usc, uscIsOn)
+    assert result == '\n'.join(lines_no_usc)
+
+    lines_no_usc = ['multiple = ', 'Hello_world;']
+    result = nc.CorrectLineUsc(lines_no_usc, False)
+    assert result == '\n'.join(lines_no_usc)
+
+
+
+    lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
+    result = nc.CorrectLineUsc(lines_with_usc, uscIsOn)
+    assert result == '\n'.join(lines_with_usc)
+
+    lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
+    result = nc.CorrectLineUsc(lines_with_usc, False)
+    expected =  '\n'.join(['#Usc#multiple with Usc = ', '#Usc#Hello_world', '#Usc#S(abc);'])
+    assert result == expected
+    
+    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
+    result = nc.CorrectLineUsc(lines_no_usc, uscIsOn)
+    assert result == '\n'.join(lines_no_usc)
+
+    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
+    result = nc.CorrectLineUsc(lines_no_usc, False)
+    assert result == '\n'.join(lines_no_usc)
+
+    lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
+    result = nc.CorrectLineUsc(lines_with_usc, False)
+    expected =  '\n'.join(['#Usc#multiple with Usc = ', '#Usc#Hello_world', '#Usc#S(abc);'])
+    assert result == expected
+    
+    
     
     
 def get_folder_dict(folderpath):
@@ -537,7 +573,7 @@ def _main():
     """run pytest for this module
     """
     # pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_include_lines'])
-    pytest.main(['-s', 'test_natlinkconfig.py'])
+    pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_correctLineUsc'])
 
  
 if __name__ == "__main__":
