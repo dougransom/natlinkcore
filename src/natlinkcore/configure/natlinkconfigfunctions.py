@@ -1,21 +1,18 @@
-#
-# natlinkconfigfunctions.py
+#pylint:disable=C0302, W0702, R0904, C0116, W0613, R0914, R0912, R1732, W1514, W0107, W1203, W1309,
+#pylint:disable=R0911, R0915, R1724, R1702
+"""
+natlinkconfigfunctions.py
 
-#   This module performs the configuration functions.
-#   called from nalinkgui (a PySimpleGUI window)),
-#   or CLI, see below
-#
-#   Quintijn Hoogenboom, January 2008 (...), August 2022
-#
-
-#pylint:disable=C0302, W0702, R0904, C0116, W0613, R0914, R0912, R1732, W1514, W0107, W1203, W1309, R0911
-"""With the functions in this module Natlink can be configured.
+This module performs the functions that configure Natlink with the different options and packages
 
 These functions are called in different ways:
--Through the natlinkconfig program (GUI)
--Via the natlinkconfig_cli.py (command line interface)
+-Through the natlinkconfig_gui.py config GUI program (which calls functions in natlinkconfig_cli.py)
+-Via the natlinkconfig_cli.py (CLI: command line interface, which calls functions in this module)
 -By running natlinkconfig_cli in batch mode.
+
+Quintijn Hoogenboom, January 2008 (...), August 2022, ... August 2026
 """
+
 import os
 import shutil
 import sys
@@ -33,7 +30,7 @@ except OSError:
     print('-'*80)
 from natlinkcore import config
 from natlinkcore import loader
-from natlinkcore import readwritefile
+from natlinkcore.readwritefile import ReadWriteFile
 from natlinkcore import tkinter_dialogs
 
 
@@ -59,7 +56,7 @@ class NatlinkConfig:
         self.home_path = str(Path.home())
         self.documents_path = str(Path.home()/'Documents')
         self.natlinkconfig_path = config.expand_natlink_settingsdir()
-
+        self.AllUscCommands = None # for vocola/dtactions
         pass
     
     def get_check_config_locations(self):
@@ -157,7 +154,7 @@ class NatlinkConfig:
     def getConfig(self):
         """return the config instance,
         """
-        rwfile = readwritefile.ReadWriteFile()
+        rwfile = ReadWriteFile()
         config_text = rwfile.readAnything(self.config_path)
         #disable any configuration, enabling using % sign in config values (QH, 30-07-2026)
         _config = configparser.ConfigParser(interpolation=None)
@@ -206,7 +203,7 @@ class NatlinkConfig:
             if self.config_encoding != 'ascii':
                 print(f'UnicodeEncodeError, cannot encode with encoding "{self.config_encoding}" the config data to file "{self.config_path}"')
                 raise UnicodeEncodeError from exc
-            with open(self.config_path, 'w', encoding='utf-8') as fp:
+            with open(self.config_path, 'w', encoding='cp-1252') as fp:
                 self.Config.write(fp)   
 
     def config_remove(self, section, option):
@@ -550,8 +547,14 @@ class NatlinkConfig:
 
         if self.status.getVocolaTakesUniactions():
             self.copyUniactionsIncludeFile()
-
-        self.checkUniactionsIncludeLines()  # previous obsolete lines, but also current, with language versions.
+            self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=True)
+            self.includeUniactionsVchLineInVocolaFiles()
+        else:
+            self.removeUniactionsVchLineInVocolaFiles()
+            
+        # with new language versios ordering of directories, paths to include lines can be broken:
+        # invalid include lines are commented out.
+        self.checkVocolaIncludeLines()  # previous obsolete lines, but also current, with language versions.
         self.status.refresh()
 
     def disable_vocola(self, arg=None):
@@ -629,11 +632,14 @@ class NatlinkConfig:
                     logging.warning(mess)
 
        
-    def checkUniactionsIncludeLines(self):
+    def checkVocolaIncludeLines(self):
         """do an include or a removal of these lines in all current Vocola files
         
         This should be carried out at enable of Vocola and
         at change of the option "a", VocolaTakesUniactions
+        
+        Also check possible problems with paths to include lines ("../enx", "..", ...)
+        that can arise with changed (multiple languages) configurations.
         
         Vocola must be enabled.
         """
@@ -644,6 +650,7 @@ class NatlinkConfig:
             self.includeUniactionsVchLineInVocolaFiles()
         else:
             self.removeUniactionsVchLineInVocolaFiles()
+        self.checkVocolaIncludeLinesValidPath()
 
     def includeUniactionsVchLineInVocolaFiles(self, subFolder=None):
         """include the Uniactions wrapper support line into all Vocola command files
@@ -653,10 +660,12 @@ class NatlinkConfig:
         
         The call from the natlinkconfig_cli (and therefore natlinkconfig_gui) should be
         without the subFolder specified.
+        (tested in test_vocola_uniactions_include_lines_on_and_off and
+        test_vocola_include_lines_take_uniactions_off (test_natlinkconfig.py))
         """
         uacFile = 'Uniactions.vch'
         includeLine = f'include {uacFile};'  # for 'enx' language
-        
+          
         todoFolder = self.status.getVocolaUserDirectory()
 
         recursive = bool(subFolder)
@@ -678,16 +687,14 @@ class NatlinkConfig:
             if f.endswith(".vcl"):
                 got_include_line = False
                 Output = []
-                for line in open(F, 'r'):
-                    line = line.rstrip()
-                    if line.strip() == includeLine:
-                        got_include_line = True
-                    
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
                     Output.append(line)
-                Output.append('')
+                    if line == includeLine:
+                        got_include_line = True
                 if not got_include_line:
                     Output.insert(0, includeLine)
-                    open(F, 'w').write('\n'.join(Output))
+                    rwfile.writeAnything(F, Output)
                     changedFiles += 1
             elif len(f) == 3:
                 changedFilesLanguage = self.includeUniactionsVchLineInVocolaFiles(subFolder=f)
@@ -724,7 +731,7 @@ class NatlinkConfig:
         # also remove includes of usc.vch
         todoFolder = self.status.getVocolaUserDirectory()
         recursive = bool(subFolder)
-        validIncludeLine = 'include Unimacro.vch' if keepValidIncludeLines else ''
+        validIncludeLine = 'include Uniactions.vch;' if keepValidIncludeLines else ''
         
         
         
@@ -737,7 +744,7 @@ class NatlinkConfig:
 
         if recursive:
             # language subfolder
-            validIncludeLine = 'include ..\\Unimacro.vch' if keepValidIncludeLines else ''
+            validIncludeLine = 'include ..\\Uniactions.vch;' if keepValidIncludeLines else ''
                 
             todoFolder  = os.path.join(todoFolder, subFolder)
             if not os.path.isdir(todoFolder):
@@ -756,10 +763,13 @@ class NatlinkConfig:
                 changed = 0
                 Output = []
                 firstLine = True
-                for line in open(F, 'r'):
+                
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
                     if firstLine and keepValidIncludeLines:
                         # keep the valid include line if at top of the file:
                         if line.strip() == validIncludeLine:
+                            firstLine = False
                             continue
                     firstLine = False
                     for oldLine in toRemoveLines:
@@ -770,7 +780,7 @@ class NatlinkConfig:
                         Output.append(line)
                 if changed:
                     # had break, so changes were made:
-                    open(F, 'w').write(''.join(Output))
+                    rwfile.writeAnything(F, Output)
                     changedFiles += 1
             elif len(f) == 3:
                 changedFilesLanguage  = self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=keepValidIncludeLines,
@@ -780,10 +790,103 @@ class NatlinkConfig:
         # self.disableVocolaTakesUniactions()
         if recursive:
             if changedFiles:
-                mess = f'Removed include line in {changedFiles} files in language folder {subFolder}'
+                mess = f'Removed invalid Uniactions include line in {changedFiles} files in language folder {subFolder}'
         else:
             if changedFiles:
-                mess = f'Removed include line from {changedFiles} files in {todoFolder} ("enx" language)'
+                mess = f'Removed invalid Uniactions include line from {changedFiles} files in {todoFolder} ("enx" language)'
+                logging.info(mess)
+
+        return True
+    
+    def checkVocolaIncludeLinesValidPath(self, subFolder=None):
+        """check validity of include lines in vocola command files.
+        
+        Also correct Unimacro(...) commands into Usc(...).
+        errors can be caused with new multi languages configurations, the "enx" directory is no
+        longer available.
+
+        """
+        isfile, join = os.path.isfile, os.path.join
+        todoFolder = self.status.getVocolaUserDirectory()
+        recursive = bool(subFolder)
+
+        if recursive:
+            todoFolder  = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return True
+
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
+            logging.warning(mess)
+            return False
+        changedFiles = 0
+        changedFilesLanguage = 0
+        
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl"):
+                changed = 0
+                Output = []
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    if (not line.startswith('include')) or line.find('=') > 0:
+                        if line.find('Unimacro(') > 0:
+                            line = line.replace('Unimacro(', 'Usc(')
+                            changed = 1
+                        Output.append(line)
+                        continue
+                    incRelPath = line.split(maxsplit=1)[1].replace(';', '').strip()
+                    incRelPath = incRelPath.replace('/', '\\')
+                    if isfile(join(todoFolder, incRelPath)):
+                        Output.append(line)
+                        continue
+                    if recursive:
+                        # change ..\\enx to ..\\
+                        if incRelPath.startswith('..\\enx'):
+                            incRel2 = incRelPath.replace('\\enx', '')
+                            line2 = f'include {incRel2};\n'
+                            if isfile(join(todoFolder, incRel2)):
+                                print(f'{f}: change include line from "{line.strip()}" to: "{line2.strip()}"')
+                                line = line2
+                                incRelPath = incRel2
+                                changed = 1
+                    else:
+                        # change ..\\nld\\ to nld\\ etc.
+                        if incRelPath.startswith('..\\'):
+                            incRel2 = incRelPath.replace('..\\', '')
+                            line2 = f'include {incRel2};\n'
+                            if isfile(join(todoFolder, incRel2)):
+                                print(f'{f}: change include line from "{line.strip()}" to: "{line2.strip()}"')
+                                line = line2
+                                incRelPath = incRel2
+                                changed = 1
+                    
+                    # check include file existence:
+                    incF = join(todoFolder, incRelPath)
+                    if not isfile(incF):
+                        print(f'{f}: vcl file has invalid include line: "{line}"')
+                        line = '#invalidpath#' + line
+                        changed = 1
+                            
+                    Output.append(line)
+                              
+                    
+
+                if changed:
+                    # had break, so changes were made:
+                    rwfile.writeAnything(F, Output)
+                    changedFiles += 1
+            elif len(f) == 3:
+                changedFilesLanguage  = self.checkVocolaIncludeLinesValidPath(subFolder=f)
+                if isinstance(changedFilesLanguage, int):
+                    changedFiles += changedFilesLanguage
+        # self.disableVocolaTakesUniactions()
+        if recursive:
+            if changedFiles:
+                mess = f'Changed path of include line in {changedFiles} files in language folder {subFolder}'
+        else:
+            if changedFiles:
+                mess = f'Changed path of include line in {changedFiles} files in {todoFolder} ("enx" language)'
                 logging.info(mess)
 
         return True
@@ -818,17 +921,35 @@ class NatlinkConfig:
             F = os.path.join(todoFolder, f)
             if f.endswith(".vcl"):
                 got_changes = 0
+                multiple_command = []
                 Output = []
-                for line in open(F, 'r'):
-                    line = line.rstrip()
-                    corrected_line = self.CorrectLineUsc(line, UscIsOn)
+
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    if UscIsOn:    #remove #Usc%# comments no need of mutiline commands
+                        corrected_line = self.CorrectLineUsc(line, UscIsOn)
+                    else:
+                        if line.startswith('#') or not line.strip():
+                            if multiple_command:
+                                multiple_command.append(line)
+                                continue
+                        if not line.rstrip().endswith(";"):
+                            multiple_command.append(line)
+                            continue
+                        # end multiple command lines:
+                        # if one line (normal case) multiple_command will only contain this line
+                        multiple_command.append(line)
+                        
+                        corrected_line = self.CorrectLineUsc(multiple_command, UscIsOn)
+                        multiple_command = []
                     if corrected_line != line:
                         got_changes += 1
                         Output.append(corrected_line)
                     else:
                         Output.append(line)
-                open(F, 'w').write('\n'.join(Output))
                 if got_changes:
+                    rwfile.writeAnything(F, Output)
+
                     mess = f'correcting .vcl file enx in {f}, {got_changes} changes'
                     logging.debug(mess)
                     changedFiles += 1
@@ -848,64 +969,87 @@ class NatlinkConfig:
             logging.info(mess)
 
         return True
- 
+
+    def getUscCommands(self):
+        """get a list of all Usc commands, put in "AllUscCommands"
+        
+        Include Unimacro.
+        """
+        join, isfile = os.path.join, os.path.isfile
+        if self.AllUscCommands is not None:
+            return self.AllUscCommands
+        File = join(self.status.getDtactionsDirectory(), 'vocola_compatibility', 'Uniactions.vch')
+        assert isfile(File)
+        Commands = {'Unimacro', 'Usc'}
+        rwfile = ReadWriteFile()
+        for line in rwfile.readAnythingLines(File):
+            if line.startswith('#'):
+                continue
+            if line.find('(') > 0:
+                com = line.split('(', 1)[0]
+                Commands.add(com)
+        if not Commands:
+            logging.warning('getUscCommands, no Usc command lines found in {File}.')
+            self.AllUscCommands = []
+            return []
+        self.AllUscCommands = list(Commands)
+        return self.AllUscCommands
+            
+
     def CorrectLineUsc(self, lines, uscIsOn):
         """correct vocola line, depending on the uscIsOn variable
         
         tests in test_vocola_regular_expressions (test_natlinkconfig.py)
         """
-        UscCOmmands = ['Usc', 'WINKEY', 'WINKEY0', 'A', 'U', 'DATE', 'DATE1', 'DATE2',
-                       'TIME', 'TIME1', 'TIME2', 'SPEAK', 'PRINT', 'S', 'SSK',
-                       'WW', 'W1', 'W', 'SW', 'LW', 'VW', 'WWT', 'WTC', 'WTC1',
-                       'PMP', 'PMP1', 'PRMP', 'PRMP1', 'PALLMP',
-                       'MP', 'RMP', 'MDOWN', 'ENDMOUSE', 'RM', 'CANCELMOUSE',
-                       'BRINGUP', 'RW', 'RTW', 'KW', 'KW1', 'KW2', 'IFWT',
-                       'CLIPSAVE', 'CLIPRESTORE', 'SCLIP',
-                       'MSG', 'MESSAGE', 'YESNO',
-                       'EMACS', 'HW', 'AHK', ]
-        insideBrackets = '|'.join(UscCOmmands)
+        UscCommands = self.getUscCommands()
+        assert isinstance(UscCommands, list)
+        assert len(UscCommands) > 0
+        
+        insideBrackets = '|'.join(UscCommands)
         reExpr = rf'\b({insideBrackets})[(]'
         reUsc = re.compile(reExpr)
         
-        reOldPrefix = re.compile(f'\b(Unimacro)[(]')
+        reOldPrefix = re.compile(r'\b(Unimacro)(?=\()')
         Comment = "#Usc#"
-        Output = []
         if uscIsOn:
-            if isinstance(lines, str):
-                lines = [lines]
-            for line in lines:
-                if line.startswith(Comment):
-                    line = line[5:]
-                    # change Unimacro as prefix of a Usc command:
-                    com, act = line.split('=', 1)
-                    m = reOldPrefix.search(act)
-                    if m:
-                        act2 = m.sub(r'\1', 'Usc')
-                        line2 = f'{com}={act2}'
-                        Output.append(line2)
-                    else:
-                        Output.append(line)
-                else:
-                    Output.append(line)
-            return '\n'.join(lines)
-        ### USC NOT ON:
+            # just removing #Usc# from commented lines:
+            assert isinstance(lines, str)
+            line = lines
+            if line.startswith(Comment):
+                line = line[5:]
+                
+            if not line.startswith('#') and line.find('=') > 0:
+                # try to change "Unimacro" into "Usc"
+                com, act = line.split('=', 1)
+                m = reOldPrefix.search(act)
+                if m:
+                    act2 = act.replace('Unimacro(', 'Usc(')
+                    line = f'{com}={act2}'
+            return line
+
+        # UscIsOff, making #Usc# comment lines
+        # this can be multiline!!!
         if isinstance(lines, str):
             lines = [lines]
-        line = '\n'.join(lines)
-        if not line.strip():
-            return line
-        # 
-        # if line.startswith('#'):
-        #     return line
-        # if line.find('=') == -1:
-        #     return line
+        had_equal = False
+        has_usc = False
+        multiple = []
         # commandPart = line.split('=', 1)[1]
-        m = reOldPrefix.search(line)
-
-        if m:
-            line = m.sub('\1', 'Usc')
-        m = reUsc.search(line)
-        if m:
+        for li in lines:
+            if li.startswith('#'):
+                multiple.append(li)
+                continue
+            m = None
+            if not had_equal and li.find('=') > 0:
+                act = li.split('=', 1)[1]
+                had_equal = True
+                m = reUsc.search(act)
+                has_usc = has_usc or bool(m)
+            elif had_equal:
+                m = reUsc.search(li)
+                has_usc = has_usc or bool(m)
+        if has_usc:
+            lines = [l.replace('Unimacro(', 'Usc(') for l in lines]
             lines = [Comment + l for l in lines if not l.startswith(Comment)]
         return '\n'.join(lines)
                     
@@ -1086,7 +1230,7 @@ def get_folder_dict(folderpath):
         subdir = dirpath[len_prefix+1:]
         key_prefix = f'{subdir}---' if subdir else ''
         for fi in files:
-            with open(join(dirpath, fi), 'r', encoding='utf-8') as f:
+            with open(join(dirpath, fi), 'r') as f:
                 lines = [line.rstrip(' \n') for line in f if line.strip()]
             D[key_prefix + fi] = lines if len(lines) <= 20 else '> 20 lines'
             

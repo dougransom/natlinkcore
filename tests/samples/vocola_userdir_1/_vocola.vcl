@@ -1,7 +1,4 @@
-include Unimacro.vch;
-# vocola file for alternate language: enx
-
+# global vocola command file for language: enx
 Paste Test = HeardWord("Paste", "Box");
-
-prompt test = ">>>QH>>> ";
+unimacro test = Unimacro(T;W);
 

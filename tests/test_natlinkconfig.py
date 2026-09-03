@@ -4,7 +4,7 @@
 from pathlib import Path
 from distutils.dir_util import copy_tree
 from distutils.file_util import copy_file
-import sys
+# import sys
 import os
 import copy
 from pprint import pprint
@@ -215,7 +215,9 @@ def test_prefix_home_appdata(cli):
 def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     """enable and disable vocola.
     
-    ALSO: trying the test procedure from conftest.py
+    (ALSO: trying the test procedure from conftest.py)
+    (Only one language, enx, side effect: change 'Unimacro(' to 'Usc('
+    Enable with Uniactions OFF, later 
     ASSUME: vocola is already a valid module!!! in this test pipping the package vocola2
             is skipped...
     """
@@ -233,18 +235,18 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     
     folder_dict = get_folder_dict(vocola_userdir)
     # should be equal to above directory vocola_userdir_2
-    exp_dict = {'_vocola.vcl': ['# vocola file for alternate language: enx',
-                                'Paste Test = HeardWord("Paste", "Box");',
-                                'prompt test = ">>>QH>>> ";'],
-                'firefox.vcl': ['# vocola file for alternate language: enx',
-                                '# Voice commands for firefox',
-                                'go to search = {ctrl+t}{ctrl+k};',
-                                'view source = {ctrl+u};']}
-    
-    
+    exp_dict = {'_vocola.vcl': ['# global vocola command file for language: enx',
+                 'Paste Test = HeardWord("Paste", "Box");',
+                 'unimacro test = Usc(T;W);'],
+ 'empty.vcl': [],
+ 'firefox.vcl': ['# vocola file for language: enx',
+                 '# Voice commands for firefox',
+                 'go to search = {ctrl+t}{ctrl+k};',
+                 'view source = {ctrl+u};']}
     
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
+    assert cli.Config.status.getVocolaTakesUniactions() is False
 
    # check new state:
     folder_dict = get_folder_dict(vocola_userdir)
@@ -277,7 +279,6 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
         assert False
     
     
-    
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
     
@@ -303,19 +304,19 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
 
     folder_dict = get_folder_dict(vocola_userdir)
 
-    exp_dict_includeline = {'Uniactions.vch':  '> 20 lines',
-                           '_vocola.vcl': ['include Uniactions.vch;',
-                                         '# vocola file for alternate language: enx',
-                                         'Paste Test = HeardWord("Paste", "Box");',
-                                         'prompt test = ">>>QH>>> ";'],
-                         'firefox.vcl': ['include Uniactions.vch;',
-                                         '# vocola file for alternate language: enx',
-                                         '# Voice commands for firefox',
-                                         'go to search = {ctrl+t}{ctrl+k};',
-                                         'view source = {ctrl+u};']}
+    exp_dict_uniactions = {'Uniactions.vch': '> 20 lines',
+ '_vocola.vcl': ['include Uniactions.vch;',
+                 '# global vocola command file for language: enx',
+                 'Paste Test = HeardWord("Paste", "Box");',
+                 'unimacro test = Usc(T;W);'],
+ 'empty.vcl': ['include Uniactions.vch;'],
+ 'firefox.vcl': ['include Uniactions.vch;',
+                 '# vocola file for language: enx',
+                 '# Voice commands for firefox',
+                 'go to search = {ctrl+t}{ctrl+k};',
+                 'view source = {ctrl+u};']}
 
-
-    if exp_dict_includeline != folder_dict:
+    if exp_dict_uniactions!= folder_dict:
         print('\n=================================\n')
         print('AFTER enable VocolaTakesUniactions (do_a):')
         print('If this is the correct content of vocola_userdir now')
@@ -333,13 +334,15 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
 
     folder_dict = get_folder_dict(vocola_userdir)
 
-    exp_dict = {'_vocola.vcl': ['# vocola file for alternate language: enx',
+    exp_dict = {'_vocola.vcl': ['# global vocola command file for language: enx',
                  'Paste Test = HeardWord("Paste", "Box");',
-                 'prompt test = ">>>QH>>> ";'],
-                'firefox.vcl': ['# vocola file for alternate language: enx',
-                                '# Voice commands for firefox',
-                                'go to search = {ctrl+t}{ctrl+k};',
-                                'view source = {ctrl+u};']}
+                 '#Usc#unimacro test = Usc(T;W);'],
+ 'empty.vcl': [],
+ 'firefox.vcl': ['# vocola file for language: enx',
+                 '# Voice commands for firefox',
+                 'go to search = {ctrl+t}{ctrl+k};',
+                 'view source = {ctrl+u};']}
+
 
     if exp_dict != folder_dict:
         print('\n=================================\n')
@@ -372,14 +375,15 @@ def test_enable_disable_vocola(vocola_config_setup, cli, monkeypatch):
     cli.do_A(vocola_userdir)
     assert cli.Config.status.getVocolaTakesUniactions() is False
     
-def test_vocola_include_lines_take_uniactions_on_and_off(vocola_config_setup, cli, monkeypatch):
+def test_vocola_include_lines_valid_path(vocola_config_setup, cli, monkeypatch):
     """check if the include lines are inserted/deleted with the option v (enable vocola)
+
+    With new vocola config (enx not a sub directory any more, always taking vocola multiple languages),
+    the include paths of include files can present problems. They are tackled with
+    checkVocolaIncludeLinesValidPath, and tested here, together with other testing...
     
-    When vocola is enabled and the option vocolatakesuniactions is ON, the include lines should be there
-
-    it is about the functions: includeUniactionsVchLineInVocolaFiles and removeUniactionsVchLineInVocolaFiles
-    in natlinkconfigfunctions.py.
-
+    This is NOT for Uniactions.vch include lines, assume VocolaTakesUniactions is False
+    
     ASSUME: vocola is already a valid module!!! in this test pipping the package vocola2
             is skipped...
     """
@@ -393,24 +397,36 @@ def test_vocola_include_lines_take_uniactions_on_and_off(vocola_config_setup, cl
 
     #copy a sample enx and nld, which should end up in empty files or files
     #only containting the wanted include line...
-    copy_tree(str(thisDir/"samples"/"vocola_userdir_2"),str(vocola_userdir))
-    cli.Config.config_set('vocola', 'vocolatakesuniactions', True)
+    copy_tree(str(thisDir/"samples"/"vocola_userdir_include"),str(vocola_userdir))
+    cli.Config.config_set('vocola', 'vocolatakesuniactions', False)
    
    
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
+    result = cli.Config.status.getVocolaTakesUniactions() 
+    assert not result
 
-    exp_dict = {'Uniactions.vch': '> 20 lines',
- 'empty.vcl': ['include Uniactions.vch;'],
- 'nld---empty_nld.vcl': ['include ..\\Uniactions.vch;'],
- 'nld---oldlines_nld.vcl': ['include ..\\Uniactions.vch;'],
- 'oldlines.vcl': ['include Uniactions.vch;']}
+    exp_dict =   {'empty.vcl': [],
+ 'generalincl.vch': ['# include file general'],
+ 'includelines_enx.vcl': ['# should be changed to nld\\:',
+                          'include nld\\specialinclude_nld.vch;',
+                          '#invalidpath#include ..\\nld\\nonexist.vch;',
+                          'include command = include_command;'],
+ 'nld---empty_nld.vcl': [],
+ 'nld---includelines_nld.vcl': ['include specialinclude_nld.vch;',
+                                '#invalidpath#include nonexist.vch;',
+                                '# should be changed to ..\\:',
+                                'include ..\\generalincl.vch;',
+                                'include command = include_command;'],
+ 'nld---normalinclude_nld.vch': ['#normal include lines nld'],
+ 'nld---specialinclude_nld.vch': ['# include file special, nld']}
+   
     folder_dict = get_folder_dict(vocola_userdir)
 
-
+ 
     if exp_dict != folder_dict:
         print('\n=================================\n')
-        print('AFTER enable vocola with option vocolatakesuniactions ON:')
+        print('AFTER testing check vocola valid include lines:')
         print('If this is the correct content of vocola_userdir now')
         print('please change your test file above accordingly\n')
 
@@ -428,6 +444,7 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
     """
     monkeypatch.setattr(cli.Config, "pip_package", return_true)
     natlink_config_dir, vocola_userdir = vocola_config_setup
+    
     print(f'natlink_config_dir: {natlink_config_dir}')
     print(f'vocola_userdir: {vocola_userdir}')
     assert os.path.isdir(natlink_config_dir)
@@ -436,10 +453,11 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
 
 
     copy_tree(str(thisDir/"samples"/"vocola_userdir_2"),str(vocola_userdir))
-    
     # There we go:
+    # cli.do_A(True)
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
+    assert not cli.Config.status.getVocolaTakesUniactions()
     # includeFile should have been copied, irrespective of the VocolaTakesUniactions
     
     folder_dict = get_folder_dict(vocola_userdir)
@@ -499,50 +517,67 @@ def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monk
 def test_vocola_correctLineUsc():
     """testing commenting out or uncommenting Uniaction lines, in use by Vocola configuration
     
-    Take multiline commands into consi
+    Take multiline commands into consideration!!!
+    The main issue is with UscIsOff (deciding which lines to comment), which as a side
+    effect also changes "Unimacro(" into "Usc("!!
     for function: correctLineUsc
     
     """
     nc = natlinkconfigfunctions.NatlinkConfig()
-    uscIsOn = True
-    line = 'Date = DATE1(%m/%d/%Y) ;'
+    UscIsOn, UscIsOff = True, False
 
-    line2 = nc.CorrectLineUsc(line, uscIsOn)
-    assert line == line2
-    line3 = nc.CorrectLineUsc(line2, False)
-    assert "#Usc#" + line == line3 
+    lines = ['highlight <_anything> = Unimacro(<<startsearch>>) $1', 'Unimacro(<<searchgo>>);']
+    line2 = nc.CorrectLineUsc(lines, UscIsOff)
+    exp_list = ['#Usc#highlight <_anything> = Usc(<<startsearch>>) $1', '#Usc#Usc(<<searchgo>>);']
+    assert exp_list == line2.split('\n')
     
+    line = nc.CorrectLineUsc(exp_list[0], UscIsOn)
+    assert line == 'highlight <_anything> = Usc(<<startsearch>>) $1'
+    
+    lines = ['highlight <_anything> =', '#comment line with Unimacro(longago)', 'Unimacro(<<startsearch>>) $1']
+    line2 = nc.CorrectLineUsc(lines, UscIsOff)
+    exp = '#Usc#highlight <_anything> =\n#Usc##comment line with Usc(longago)\n#Usc#Usc(<<startsearch>>) $1'
+    assert exp == line2
+
+    single_line_Date =  'Date = DATE1(%m/%d/%Y) ;'
+    result = nc.CorrectLineUsc(single_line_Date, UscIsOff)
+    exp = '#Usc#' + single_line_Date
+    assert exp == result
+    
+    # no Usc commands:
 
     lines_no_usc = ['multiple = ', 'Hello_world;']
-    result = nc.CorrectLineUsc(lines_no_usc, uscIsOn)
+    result = nc.CorrectLineUsc(lines_no_usc, UscIsOff)
     assert result == '\n'.join(lines_no_usc)
 
-    lines_no_usc = ['multiple = ', 'Hello_world;']
-    result = nc.CorrectLineUsc(lines_no_usc, False)
-    assert result == '\n'.join(lines_no_usc)
+    lines_no_usc = ['multiple comment = ','#comment one', '#comment two', 'Hello_world;']
+    result = nc.CorrectLineUsc(lines_no_usc, UscIsOff)
+    assert result == '\n'.join(lines_no_usc) 
 
 
+    # these only with UscIsOff:
 
     lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
-    result = nc.CorrectLineUsc(lines_with_usc, uscIsOn)
-    assert result == '\n'.join(lines_with_usc)
+    result = nc.CorrectLineUsc(lines_with_usc, UscIsOff)
+    expected =  '\n'.join(['#Usc#multiple with Usc = ', '#Usc#Hello_world', '#Usc#S(abc);'])
+    assert result == expected
+    
+    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
+    result = nc.CorrectLineUsc(lines_no_usc, UscIsOff)
+    assert result == '\n'.join(lines_no_usc)
+
+    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
+    result = nc.CorrectLineUsc(lines_no_usc, False)
+    assert result == '\n'.join(lines_no_usc)
 
     lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
     result = nc.CorrectLineUsc(lines_with_usc, False)
     expected =  '\n'.join(['#Usc#multiple with Usc = ', '#Usc#Hello_world', '#Usc#S(abc);'])
     assert result == expected
-    
-    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
-    result = nc.CorrectLineUsc(lines_no_usc, uscIsOn)
-    assert result == '\n'.join(lines_no_usc)
 
-    lines_no_usc = ['Quasi Usc in command WINKEY = ', 'Hello_world', 'NO real Usc;']
-    result = nc.CorrectLineUsc(lines_no_usc, False)
-    assert result == '\n'.join(lines_no_usc)
-
-    lines_with_usc = ['multiple with Usc = ', 'Hello_world', 'S(abc);']
-    result = nc.CorrectLineUsc(lines_with_usc, False)
-    expected =  '\n'.join(['#Usc#multiple with Usc = ', '#Usc#Hello_world', '#Usc#S(abc);'])
+    line_with_unimacro = ['single obsolete line = Unimacro("hello");']
+    result = nc.CorrectLineUsc(line_with_unimacro, False)
+    expected =  '#Usc#single obsolete line = Usc("hello");'
     assert result == expected
     
     
@@ -573,7 +608,7 @@ def _main():
     """run pytest for this module
     """
     # pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_include_lines'])
-    pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_correctLineUsc'])
+    pytest.main(['test_natlinkconfig.py'])
 
  
 if __name__ == "__main__":

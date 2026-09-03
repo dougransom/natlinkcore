@@ -9,7 +9,7 @@ from pathlib import Path
 
 thisFile = __file__
 thisDir, Filename = os.path.split(thisFile)
-testDir = os.path.join(thisDir, 'readwritefiletest')
+testInputDir = os.path.join(thisDir, 'readwritefiletest')
 testFolderName="readwritefiletest"
 
 mock_readwritefiledir=Path(thisDir)/"mock_readwritefile"
@@ -18,9 +18,9 @@ def setup_module(module):
     pass
 
 def teardown_module(module):
-    for F in os.listdir(testDir):
+    for F in os.listdir(testInputDir):
         if F.startswith('output-'):
-            F_path = os.path.join(testDir, F)
+            F_path = os.path.join(testInputDir, F)
             os.remove(F_path)
 
 def test_only_write_file(tmp_path):
@@ -44,6 +44,20 @@ def test_only_write_file(tmp_path):
     assert rwfile.encoding == 'ascii'
     assert rwfile.bom == ''
     assert text == ''
+    
+def test_readanythinglines(tmp_path):
+    """test the readAnythingLines function
+    """
+    join = os.path.join
+    testDir = tmp_path / testFolderName
+    testDir.mkdir()
+    input_file = join(mock_readwritefiledir, 'shortfile.txt')
+    Output = []
+    rwfile = ReadWriteFile()
+    for line in rwfile.readAnythingLines(input_file):
+        Output.append(line)
+    assert len(Output) == 3
+
     
 def test_accented_characters_write_file(tmp_path):
 #    join, isfile = os.path.join, os.path.isfile
