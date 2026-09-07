@@ -864,7 +864,7 @@ class NatlinkConfig:
                     # check include file existence:
                     incF = join(todoFolder, incRelPath)
                     if not isfile(incF):
-                        print(f'{f}: vcl file has invalid include line: "{line}"')
+                        print(f'{f}: vcl  file has invalid include line: "{line}"')
                         line = '#invalidpath#' + line
                         changed = 1
                             
