@@ -1,1 +1,2 @@
-# include file general
+#include file general refer to specialinclude.vch:
+include specialinclude.vch;

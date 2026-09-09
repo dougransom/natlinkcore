@@ -399,27 +399,58 @@ def test_vocola_include_lines_valid_path(vocola_config_setup, cli, monkeypatch):
     #only containting the wanted include line...
     copy_tree(str(thisDir/"samples"/"vocola_userdir_include"),str(vocola_userdir))
     cli.Config.config_set('vocola', 'vocolatakesuniactions', False)
-   
-   
+
+    folder_dict = get_folder_dict(vocola_userdir)
+    start_dict = {'generalincl.vch': ['#include file general refer to specialinclude.vch:',
+                     'include specialinclude.vch;'],
+ 'grammar.vcl': ['include Uniactions.vch;',
+                 '# should be changed to nld\\ and reactivated:',
+                 'include ..\\nld\\specialinclude_nld.vch;',
+                 'include ..\\nld\\nonexist.vch;',
+                 'include command = include_command;'],
+ 'nld---generalincl_nld.vch': ['# include_nld',
+                               'include ..\\specialinclude.vch;'],
+ 'nld---grammar_nld.vcl': ['include ..\\Uniactions.vch;',
+                           'include Uniactions.vch;',
+                           'include "generalincl_nld.vch";',
+                           'include nonexist.vch;',
+                           '# should be changed to ..\\:',
+                           'include ..\\enx\\generalincl.vch;',
+                           'include command = include_command;'],
+ 'nld---specialinclude_nld.vch': ['# include_nld',
+                                  'include ..\\specialinclude.vch;'],
+ 'specialinclude.vch': ['# include file special with Uniactions lines',
+                        '#function definition:',
+                        'login(n,p) := "blah_blah" LW();']}
+
+    # print('folder_dict, actual folder dict at start:')
+    # pprint(folder_dict)
+    assert start_dict == folder_dict
+    
     cli.do_v(vocola_userdir)
     assert cli.Config.status.vocolaIsEnabled()
     result = cli.Config.status.getVocolaTakesUniactions() 
     assert not result
 
-    exp_dict =   {'empty.vcl': [],
- 'generalincl.vch': ['# include file general'],
- 'includelines_enx.vcl': ['# should be changed to nld\\:',
-                          'include nld\\specialinclude_nld.vch;',
-                          '#invalidpath#include ..\\nld\\nonexist.vch;',
-                          'include command = include_command;'],
- 'nld---empty_nld.vcl': [],
- 'nld---includelines_nld.vcl': ['include specialinclude_nld.vch;',
-                                '#invalidpath#include nonexist.vch;',
-                                '# should be changed to ..\\:',
-                                'include ..\\generalincl.vch;',
-                                'include command = include_command;'],
- 'nld---normalinclude_nld.vch': ['#normal include lines nld'],
- 'nld---specialinclude_nld.vch': ['# include file special, nld']}
+    exp_dict = {'generalincl.vch': ['#include file general refer to specialinclude.vch:',
+                     'include specialinclude.vch;'],
+ 'grammar.vcl': ['# should be changed to nld\\ and reactivated:',
+                 'include nld\\specialinclude_nld.vch;',
+                 '#invalidfile#include ..\\nld\\nonexist.vch;',
+                 'include command = include_command;'],
+ 'nld---generalincl_nld.vch': ['# include_nld',
+                               'include ..\\specialinclude.vch;'],
+ 'nld---grammar_nld.vcl': ['include generalincl_nld.vch;',
+                           '#invalidfile#include nonexist.vch;',
+                           '# should be changed to ..\\:',
+                           'include ..\\generalincl.vch;',
+                           'include command = include_command;'],
+ 'nld---specialinclude_nld.vch': ['# include_nld',
+                                  'include ..\\specialinclude.vch;'],
+ 'specialinclude.vch': ['# include file special with Uniactions lines',
+                        '#function definition:',
+                        'login(n,p) := "blah_blah" LW();']}
+   
    
     folder_dict = get_folder_dict(vocola_userdir)
 
@@ -432,6 +463,50 @@ def test_vocola_include_lines_valid_path(vocola_config_setup, cli, monkeypatch):
 
         pprint(folder_dict)
         assert False
+    
+   ### now switch on Uniactions:
+        
+    cli.do_a(True)         
+    exp_dict = {'Uniactions.vch': '> 20 lines',
+ 'generalincl.vch': ['include Uniactions.vch;',
+                     '#include file general refer to specialinclude.vch:',
+                     'include specialinclude.vch;'],
+ 'grammar.vcl': ['include Uniactions.vch;',
+                 '# should be changed to nld\\ and reactivated:',
+                 'include nld\\specialinclude_nld.vch;',
+                 '#invalidfile#include ..\\nld\\nonexist.vch;',
+                 'include command = include_command;'],
+ 'nld---generalincl_nld.vch': ['include ..\\Uniactions.vch;',
+                               '# include_nld',
+                               'include ..\\specialinclude.vch;'],
+ 'nld---grammar_nld.vcl': ['include ..\\Uniactions.vch;',
+                           'include generalincl_nld.vch;',
+                           '#invalidfile#include nonexist.vch;',
+                           '# should be changed to ..\\:',
+                           'include ..\\generalincl.vch;',
+                           'include command = include_command;'],
+ 'nld---specialinclude_nld.vch': ['include ..\\Uniactions.vch;',
+                                  '# include_nld',
+                                  'include ..\\specialinclude.vch;'],
+ 'specialinclude.vch': ['include Uniactions.vch;',
+                        '# include file special with Uniactions lines',
+                        '#function definition:',
+                        'login(n,p) := "blah_blah" LW();']}
+   
+    folder_dict = get_folder_dict(vocola_userdir)
+
+ 
+    if exp_dict != folder_dict:
+        print('\n=================================\n')
+        print('AFTER testing check vocola valid include lines, with Uniactions switched ON:')
+        print('If this is the correct content of vocola_userdir now')
+        print('please change your test file above accordingly\n')
+
+        pprint(folder_dict)
+        assert False
+
+
+        
 
 def test_vocola_include_lines_take_uniactions_off(vocola_config_setup, cli, monkeypatch):
     """check if the include lines are correctly deleted when option vocolatakesuniactions is initially OFF
@@ -607,8 +682,8 @@ def get_folder_dict(folderpath):
 def _main():
     """run pytest for this module
     """
-    # pytest.main(['-s', 'test_natlinkconfig.py::test_vocola_include_lines'])
-    pytest.main(['test_natlinkconfig.py'])
+    pytest.main(['-s', 'test_natlinkconfig.py'])
+    # pytest.main(['-s', '-vv','test_natlinkconfig.py::test_vocola_include_lines_valid_path'])
 
  
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ Quintijn Hoogenboom, January 2008 (...), August 2022, ... August 2026
 
 import os
 import shutil
+# from distutils.dir_util import copy_tree
 import sys
 import subprocess
 from pprint import pformat, pprint
@@ -69,7 +70,22 @@ class NatlinkConfig:
             config_dir = Path(config_path).parent
             if not config_dir.is_dir():
                 config_dir.mkdir(parents=True)
+                
+        # # #     ### here copy from previous location to current location,
+        # # #     ### only if config_dir equals the new_default_config_dir and is empty
+        # # #     (apart from directory Natlink for logging, set in line 10 of natlinkconfig_cli.py)
+        # # #
+        # # #     Are we satisfied with only copying natlink.ini if not present with the copyfile line below
+        # # #     or do we want all the stuff in the old config directory???
+        # # # 
+        # # #     old_default_config_dir = config.expand_path(r'%personalhome%\.natlink')
+        # # #     new_default_config_dir = config.expand_path(r'%localappdata%\Natlink')
+        # # #     if str(config_dir) == new_default_config_dir and len(os.listdir(config_dir)) <= 1:
+        # # #         copy_tree(old_default_config_dir, new_default_config_dir)
+        # # # ## just in case the config_path still does not exist::
+        if not os.path.isfile(config_path):
             shutil.copyfile(fallback_path, config_path)
+
         return config_path
 
     def check_config(self):
@@ -684,7 +700,7 @@ class NatlinkConfig:
         changedFiles = 0
         for f in os.listdir(todoFolder):
             F = os.path.join(todoFolder, f)
-            if f.endswith(".vcl"):
+            if f.endswith(".vcl") or f.endswith(".vch"):
                 got_include_line = False
                 Output = []
                 rwfile = ReadWriteFile()
@@ -759,7 +775,7 @@ class NatlinkConfig:
         
         for f in os.listdir(todoFolder):
             F = os.path.join(todoFolder, f)
-            if f.endswith(".vcl"):
+            if f.endswith(".vcl") or f.endswith(".vch"):
                 changed = 0
                 Output = []
                 firstLine = True
@@ -824,55 +840,43 @@ class NatlinkConfig:
         
         for f in os.listdir(todoFolder):
             F = os.path.join(todoFolder, f)
-            if f.endswith(".vcl"):
-                changed = 0
+            if f.endswith(".vcl") or f.endswith(".vch"):
+                changes = 0
                 Output = []
                 rwfile = ReadWriteFile()
                 for line in rwfile.readAnythingLines(F):
-                    if (not line.startswith('include')) or line.find('=') > 0:
-                        if line.find('Unimacro(') > 0:
-                            line = line.replace('Unimacro(', 'Usc(')
-                            changed = 1
-                        Output.append(line)
+                    if (not (line.startswith('include')) or line.startswith('#invalidfile#')) or  line.find('=') > 0:
+                        # hard to check whether line is changed or not, so add to it:
+                        newLine = line.replace('Unimacro(', 'Usc(') if line.find('Unimacro(') > 0 else line
+                        changes += self.outputReportChange(Output, newLine, oldLine=line)
                         continue
                     incRelPath = line.split(maxsplit=1)[1].replace(';', '').strip()
+                    incRelPath = incRelPath.strip('"').strip("'").strip('"')
                     incRelPath = incRelPath.replace('/', '\\')
                     if isfile(join(todoFolder, incRelPath)):
-                        Output.append(line)
+                        newLine = f'include {incRelPath};'
+                        changes += self.outputReportChange(Output, newLine, oldLine=line)
                         continue
                     if recursive:
                         # change ..\\enx to ..\\
                         if incRelPath.startswith('..\\enx'):
                             incRel2 = incRelPath.replace('\\enx', '')
-                            line2 = f'include {incRel2};\n'
                             if isfile(join(todoFolder, incRel2)):
-                                print(f'{f}: change include line from "{line.strip()}" to: "{line2.strip()}"')
-                                line = line2
-                                incRelPath = incRel2
-                                changed = 1
+                                newLine = f'include {incRel2};'
+                                changes += self.outputReportChange(Output, newLine, oldLine=line)
+                                continue
                     else:
-                        # change ..\\nld\\ to nld\\ etc.
                         if incRelPath.startswith('..\\'):
                             incRel2 = incRelPath.replace('..\\', '')
-                            line2 = f'include {incRel2};\n'
                             if isfile(join(todoFolder, incRel2)):
-                                print(f'{f}: change include line from "{line.strip()}" to: "{line2.strip()}"')
-                                line = line2
-                                incRelPath = incRel2
-                                changed = 1
-                    
-                    # check include file existence:
-                    incF = join(todoFolder, incRelPath)
-                    if not isfile(incF):
-                        print(f'{f}: vcl  file has invalid include line: "{line}"')
-                        line = '#invalidpath#' + line
-                        changed = 1
-                            
-                    Output.append(line)
-                              
-                    
+                                newLine = f'include {incRel2};'
+                                changes += self.outputReportChange(Output, newLine, oldLine=line)
+                                continue
+                    # incRelPath NOT a file:
+                    newLine = f'#invalidfile#include {incRelPath};' 
+                    changes += self.outputReportChange(Output, newLine, oldLine=line)
 
-                if changed:
+                if changes:
                     # had break, so changes were made:
                     rwfile.writeAnything(F, Output)
                     changedFiles += 1
@@ -891,6 +895,11 @@ class NatlinkConfig:
 
         return True
     
+    def outputReportChange(self, Output, newLine, oldLine):
+        """return 1 if line changed, 0 otherwise
+        """
+        Output.append(newLine)
+        return int(newLine.strip() != oldLine)
 
     def checkUscLinesInVocolaFiles(self, subFolder=None):
         """check vocola files for invalid or commented Usc commands
@@ -919,7 +928,7 @@ class NatlinkConfig:
         changedFiles = 0
         for f in os.listdir(todoFolder):
             F = os.path.join(todoFolder, f)
-            if f.endswith(".vcl"):
+            if f.endswith(".vcl") or f.endswith(".vch"):
                 got_changes = 0
                 multiple_command = []
                 Output = []
