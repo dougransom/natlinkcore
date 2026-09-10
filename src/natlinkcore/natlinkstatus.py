@@ -752,11 +752,10 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     
     def getVocolaTakesUniactions(self):
         """gets and value for optional Vocola takes Uniactions (from dtactions)
-        
+            Always return True
         """
         key = 'VocolaTakesUniactions'
-        result = self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
-        return result
+        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
 
     
     def getInstallVersion(self):

@@ -583,11 +583,9 @@ class NatlinkConfig:
         self.config_remove('directories', 'vocoladirectory')   #could still be there...
 
     disable_vocola2 = disable_vocola
-    
 
     def copyUniactionsIncludeFile(self):
         """copy Uniactions include file into Vocola user directory
-
         """
         uacFile = 'Uniactions.vch'
         # also remove the previous version Unimacro.vch
