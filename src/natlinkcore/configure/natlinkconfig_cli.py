@@ -17,7 +17,7 @@ from platformdirs import  user_log_dir
 # is packages is already there:  todoDoug
 packages_to_pip = ['natlinkcore', 'dragonfly', 'unimacro', 'vocola2']  ## 'caster' wanted here??]
 appname="natlink"
-logdir =  Path(user_log_dir(appname=appname,ensure_exists=True))
+logdir =  Path(user_log_dir(appname=appname.capitalize(),ensure_exists=True))
 logfilename=logdir/"cli_log.txt"
 file_handler = logging.FileHandler(logfilename)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -45,7 +45,7 @@ def _main(Options=None):
     """
 
 
-    shortOptions = "DVNOHKaAiIxXbBuqepPfF"
+    shortOptions = "DVNOHKaAiIxXuqepPfF"
     shortArgOptions = "d:v:n:o:h:k:"
     if Options:
         if isinstance(Options, str):
@@ -147,15 +147,14 @@ x/X     - enable/disable debug output of Natlink
 
 v/V     - enable/disable Vocola by setting/clearing VocolaUserDirectory,
           where the Vocola Command Files (.vcl) will be located.
-          (~ or %HOME% are allowed, for example "~/.natlink/VocolaUser")
-
-b/B     - enable/disable distinction between languages for Vocola user files
-a/A     - enable/disable the possibility to use Unimacro actions in Vocola
+          (~ or %HOME% are allowed, for example "~/Documents/VocolaUser")
+a/A     - enable/disable the possibility to use Uniactions in Vocola
 
 [Unimacro]
 
 o/O     - enable/disable Unimacro, by setting/clearing the UnimacroUserDirectory, where
-          the Unimacro user INI files are located, and several other directories (~ or %HOME% allowed)
+          the Unimacro user INI files are located, and several other directories
+          (~ or %HOME% allowed, eg. ~\Documents\UnimacroUser)
 
 [DragonflyDirectory]
 d/D     - enable/disable the DragonflyDirectory, the directory where
@@ -167,7 +166,7 @@ f/F     - Force (thinking this process is) in elevated mode for installing packa
 
 [UserDirectory]
 n/N     - enable/disable UserDirectory, the directory where
-          User Natlink grammar files are located (e.g., "~\UserDirectory")
+          User Natlink grammar files are located (e.g., "~\Documents\UserDirectory")
 
 [AutoHotkey]
 h/H     - set/clear the AutoHotkey exe directory.
@@ -450,7 +449,7 @@ another environment variable (%%...%%). (example: "o ~\Documents\UnimacroUser")
 #     def do_l(self, arg):
 #         self.message = "Copy include file Unimacro.vch into Vocola User Directory"
 #         print(f'do action: {self.message}')
-#         self.Config.copyUnimacroIncludeFile()
+#         self.Config.copyUniactionsIncludeFile()
 # 
 #     def help_l(self):
 #         print('-'*60)
@@ -467,14 +466,14 @@ another environment variable (%%...%%). (example: "o ~\Documents\UnimacroUser")
 #     def do_m(self, arg):
 #         self.message = 'Insert "include Unimacro.vch" line in each Vocola Command File'
 #         print(f'do action: {self.message}')
-#         self.Config.enableVocolaTakesUnimacroActions()
+#         self.Config.enableVocolaTakesUniactions()
 #         
 #     def do_M(self, arg):
 #         self.message = 'Remove "include Unimacro.vch" line from each Vocola Command File'
 #         print(f'do action: {self.message}')
-#         self.Config.removeUnimacroVchLineInVocolaFiles()
-#         print('and do action: disableVocolaTakesUnimacroActions')
-#         self.Config.disableVocolaTakesUnimacroActions()
+#         self.Config.includeUniactionsVchLineInVocolaFiles()
+#         print('and do action: disableVocolaTakesUniactions')
+#         self.Config.disableVocolaTakesUniactions()
 #         
 #     help_m = help_M = help_l
     
@@ -530,49 +529,56 @@ logging variable to "DEBUG" or "INFO"
     help_X = help_x
     
     # different Vocola options
-    def do_b(self, arg):
-        self.message = "Enable Vocola different user directories for different languages"
-        print(f'do action: {self.message}')
-        self.Config.enableVocolaTakesLanguages()
-    def do_B(self, arg):
-        self.message = "Disable Vocola different user directories for different languages"
-        print(f'do action: {self.message}')
-        self.Config.disableVocolaTakesLanguages()
+    # this one becomes standard!!!
+    # obsolete with natlink, natlinkcore version 6, vocola version 3.2.0
+    # def do_b(self, arg):
+    #     self.message = 'Enable Vocola different user directories for different languages (do "help b" for explanation)'
+    #     print(f'obsolete option: {self.message}')
+    #     # self.Config.enableVocolaTakesLanguages()
+    # def do_B(self, arg):
+    #     self.message = 'Disable Vocola different user directories for different languages (do "help b" for explanation)'
+    #     print(f'obsolete option: {self.message}')
+    #     # self.Config.disableVocolaTakesLanguages()
 
     def do_a(self, arg):
-        self.message = "Enable Vocola taking Unimacro actions"
+        self.message = "Enable Vocola taking Uniactions"
         print(f'do action: {self.message}')
-        self.Config.enableVocolaTakesUnimacroActions()
+        self.Config.enableVocolaTakesUniactions()
         
     def do_A(self, arg):
-        self.message = "Disable Vocola taking Unimacro actions"
+        self.message = "Disable Vocola taking Uniactions"
         print(f'do action: {self.message}')
-        self.Config.disableVocolaTakesUnimacroActions()
+        self.Config.disableVocolaTakesUniactions()
 
     def help_a(self):
         print('-'*60)
-        print("""----Enable (a)/disable (A) Vocola taking Unimacro actions.
+        print("""----Enable (a)/disable (A) Vocola taking Uniactions.
         
-These actions (Unimacro Shorthand Commands) and "meta actions" are processed by
-the Unimacro actions module (really dtactions)
+These actions (Uniactions Shorthand Commands) and "meta actions" are processed by
+the Uniactions module (in repository dtactions)
 """)
         print('='*60)
         
     def help_b(self):
         print('-'*60)
-        print("""----Enable (b)/disable (B) different Vocola User Directories
+        print("""----Obsolete: Enable (b)/disable (B) different Vocola User Directories
 
-If enabled, Vocola will look into a subdirectory "xxx" of
-VocolaUserDirectory IF the language code of the current user speech
-profile is "xxx" and  is NOT "enx".
+This option has been removed; in this version only the "enx" vocola command files
+are (expected to be) in the VocolaUserDirectory.
 
-So for English users this option will have no effect.
+Vocola command files in other languages ("nld", "esp", "deu", "ita", "fra")
+will be located in subdirectories of the VocolaUserDirectory with
+this three letter code as name.
 
-The first time a command file is opened in, for example, a
-Dutch speech profile (language code "nld"), a subdirectory "nld" 
-is created, and all existing Vocola Command files for this Dutch speech profile are copied into this folder.
+This corresponds with the previous strategy of this option switched on!
 
-When you use your English speech profile again, ("enx") the Vocola Command files in the VocolaUserDirectory are taken again.
+Include files will be kept preferably in the base VocolaUserDirectory.
+
+For English users nothing will be changed.
+
+For other language users, the user should ensure the command files are placed
+in the appropriate sub directory of the VocolaUserDirectory.
+
 """)
         print('='*60)
 
@@ -649,6 +655,7 @@ def main_cli():
             Cli = CLI()
             
         Cli.Config = natlinkconfigfunctions.NatlinkConfig(extra_pip_options=extra_pip_options)
+        Cli.Config.check_config()
         Cli.info = ""
         print('\nWelcome to the NatlinkConfig Command Line Interface\n')
         print('Type "I" for manual editing the "natlink.ini" config file\n')

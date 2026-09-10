@@ -1,39 +1,39 @@
-#
-# natlinkconfigfunctions.py
+#pylint:disable=C0302, W0702, R0904, C0116, W0613, R0914, R0912, R1732, W1514, W0107, W1203, W1309,
+#pylint:disable=R0911, R0915, R1724, R1702
+"""
+natlinkconfigfunctions.py
 
-#   This module performs the configuration functions.
-#   called from nalinkgui (a PySimpleGUI window)),
-#   or CLI, see below
-#
-#   Quintijn Hoogenboom, January 2008 (...), August 2022
-#
-
-#pylint:disable=C0302, W0702, R0904, C0116, W0613, R0914, R0912, R1732, W1514, W0107, W1203, W1309
-"""With the functions in this module Natlink can be configured.
+This module performs the functions that configure Natlink with the different options and packages
 
 These functions are called in different ways:
--Through the natlinkconfig program (GUI)
--Via the natlinkconfig_cli.py (command line interface)
+-Through the natlinkconfig_gui.py config GUI program (which calls functions in natlinkconfig_cli.py)
+-Via the natlinkconfig_cli.py (CLI: command line interface, which calls functions in this module)
 -By running natlinkconfig_cli in batch mode.
+
+Quintijn Hoogenboom, January 2008 (...), August 2022, ... August 2026
 """
+
 import os
 import shutil
+# from distutils.dir_util import copy_tree
 import sys
 import subprocess
-from pprint import pformat
+from pprint import pformat, pprint
 from pathlib import Path
+import re
 import configparser
 import logging
 try:
     from natlinkcore import natlinkstatus
 except OSError:
-    print('error when starting natlinkconfigfunctions')
+    print('Error when starting natlinkconfigfunctions, cannot import natlinkstatus')
+    pprint(sys.path)
+    print('-'*80)
 from natlinkcore import config
 from natlinkcore import loader
-from natlinkcore import readwritefile
+from natlinkcore.readwritefile import ReadWriteFile
 from natlinkcore import tkinter_dialogs
 
-isfile, isdir, join = os.path.isfile, os.path.isdir, os.path.join
 
 class NatlinkConfig:
     """performs the configuration tasks of Natlink
@@ -44,18 +44,20 @@ class NatlinkConfig:
 
     Changes are written in the config file, from which the path is taken from the loader instance.
     """
-    def __init__(self,extra_pip_options=None):
+    def __init__(self,extra_pip_options=None):        
+
+        ## extra_pip_options currently not used...
         self.extra_pip_options = [] if extra_pip_options is None else extra_pip_options
         self.do_pip_with_pre = '--pre' in self.extra_pip_options
         self.config_path = self.get_check_config_locations()
         self.config_dir = str(Path(self.config_path).parent)
         self.status = natlinkstatus.NatlinkStatus()
         self.Config = self.getConfig()  # get the config instance of config.NatlinkConfig
-        self.check_config()
         # for convenience in other places:
         self.home_path = str(Path.home())
         self.documents_path = str(Path.home()/'Documents')
         self.natlinkconfig_path = config.expand_natlink_settingsdir()
+        self.AllUscCommands = None # for vocola/dtactions
         pass
     
     def get_check_config_locations(self):
@@ -64,11 +66,26 @@ class NatlinkConfig:
         """
         config_path, fallback_path = loader.config_locations()  
         
-        if not isfile(config_path):
+        if not os.path.isfile(config_path):
             config_dir = Path(config_path).parent
             if not config_dir.is_dir():
                 config_dir.mkdir(parents=True)
+                
+        # # #     ### here copy from previous location to current location,
+        # # #     ### only if config_dir equals the new_default_config_dir and is empty
+        # # #     (apart from directory Natlink for logging, set in line 10 of natlinkconfig_cli.py)
+        # # #
+        # # #     Are we satisfied with only copying natlink.ini if not present with the copyfile line below
+        # # #     or do we want all the stuff in the old config directory???
+        # # # 
+        # # #     old_default_config_dir = config.expand_path(r'%personalhome%\.natlink')
+        # # #     new_default_config_dir = config.expand_path(r'%localappdata%\Natlink')
+        # # #     if str(config_dir) == new_default_config_dir and len(os.listdir(config_dir)) <= 1:
+        # # #         copy_tree(old_default_config_dir, new_default_config_dir)
+        # # # ## just in case the config_path still does not exist::
+        if not os.path.isfile(config_path):
             shutil.copyfile(fallback_path, config_path)
+
         return config_path
 
     def check_config(self):
@@ -107,6 +124,34 @@ class NatlinkConfig:
                 pass
         except KeyError:
             pass
+
+        section = 'vocola'
+        option = 'vocolatakeslanguages'
+        try:
+            value = self.Config[section][option]
+            self.config_remove(section, option)
+        except KeyError:
+            pass
+        
+        section = 'vocola'
+        old_option = 'vocolatakesunimacroactions'
+        new_option = 'vocolatakesuniactions'
+        try:
+            old_value = self.Config[section][old_option]
+            self.config_remove(section, old_option)
+        except KeyError:
+            pass
+        else:
+            try:
+                _new_value = self.Config[section][new_option]
+            except KeyError:
+                self.config_set(section, new_option, old_value)
+            
+        pass
+    
+        
+        
+        
         
         if loader.had_msg_error:
             logging.error('The environment variable "NATLINK_USERDIR" has been changed to "NATLINK_SETTINGSDIR" by the user, but has a conclicting value')
@@ -116,16 +161,19 @@ class NatlinkConfig:
             logging.error('The key of the environment variable "NATLINK_USERDIR" should be changed to "NATLINK_SETTINGSDIR".')
             logging.error('You can do so in windows "environment variables", dialog "User variables".')
             
+        
+            
             
         # for key, value in self.Config[section].items():
         #     print(f'key: {key}, value: {value}')
 
     def getConfig(self):
-        """return the config instance
+        """return the config instance,
         """
-        rwfile = readwritefile.ReadWriteFile()
+        rwfile = ReadWriteFile()
         config_text = rwfile.readAnything(self.config_path)
-        _config = configparser.ConfigParser()
+        #disable any configuration, enabling using % sign in config values (QH, 30-07-2026)
+        _config = configparser.ConfigParser(interpolation=None)
         _config.read_string(config_text)
         self.config_encoding = rwfile.encoding
         return _config
@@ -135,7 +183,7 @@ class NatlinkConfig:
 
         """
         try:
-            return self.Config.get(section, option)
+            return self.Config.get(section, option)  # all interpolation is disabled
         except (configparser.NoSectionError, configparser.NoOptionError):
             return None
  
@@ -171,7 +219,7 @@ class NatlinkConfig:
             if self.config_encoding != 'ascii':
                 print(f'UnicodeEncodeError, cannot encode with encoding "{self.config_encoding}" the config data to file "{self.config_path}"')
                 raise UnicodeEncodeError from exc
-            with open(self.config_path, 'w', encoding='utf-8') as fp:
+            with open(self.config_path, 'w', encoding='cp-1252') as fp:
                 self.Config.write(fp)   
 
     def config_remove(self, section, option):
@@ -206,7 +254,7 @@ class NatlinkConfig:
                 print('No valid directory specified')
                 return
 
-        dir_path = dir_path.strip()
+        dir_path = str(dir_path).strip()
         directory = config.expand_path(dir_path)
         if directory is False:
             logging.error(f'Cannot expand dir_path: "{dir_path}"')
@@ -220,7 +268,7 @@ class NatlinkConfig:
                 logging.info(f'Cannot set "{option}", the given path is invalid: "{directory}" ("{dir_path}")')
             return
         
-        nice_dir_path = self.prefix_home(dir_path)
+        nice_dir_path = self.prefix_home_appdata(dir_path)
         nice_dir_path = nice_dir_path.replace('/', '\\')        
         self.config_set(section, option, nice_dir_path)
         dir_path = dir_path.strip()
@@ -258,12 +306,29 @@ class NatlinkConfig:
         logging.info(f'cleared "{option}"')
  
  
-    def prefix_home(self, dir_path):
-        """if dir_path startswith home directory, replace this with "~"
+    def prefix_home_appdata(self, dir_path):
+        r"""if dir_path startswith home directory, replace this with "%personalhome% (instead of "~")
+        
+        Same if dir_path startswith the path of you local appdata directory, change to %localappdata%.
+        
+        tested in test_prefix_home_appdata (tests\test_natlinkconfig.py)
         """
         home_path = str(Path.home())
+        
+        appdataLocal = os.path.expandvars('%localappdata%')
+        if dir_path.startswith(appdataLocal):
+            dir_path = dir_path.replace(appdataLocal, '%localappdata%')
+            return dir_path
+
+
+        appdataRoaming = rf'{home_path}\AppData\Roaming'
+        if dir_path.startswith(appdataRoaming):
+            dir_path = dir_path.replace(appdataRoaming, '%appdata%')
+            return dir_path
+
         if dir_path.startswith(home_path):
-            dir_path = dir_path.replace(home_path, "~")
+            dir_path = dir_path.replace(home_path, "%personalhome%")
+            
         return dir_path
             
  
@@ -356,7 +421,7 @@ class NatlinkConfig:
 
     def enable_unimacro(self, arg):
         unimacro_user_dir = self.status.getUnimacroUserDirectory()
-        if unimacro_user_dir and isdir(unimacro_user_dir):
+        if unimacro_user_dir and os.path.isdir(unimacro_user_dir):
             logging.info(f'UnimacroUserDirectory is already defined: "{unimacro_user_dir}"\n\tto change, first clear (option "O") and then set again')
             logging.info('\nWhen you want to upgrade Unimacro, also first clear ("O"), then choose this option ("o") again.\n')
             return False
@@ -406,7 +471,7 @@ class NatlinkConfig:
 
     def enable_dragonfly(self, arg):
         dragonfly_user_dir = self.status.getDragonflyUserDirectory()
-        if dragonfly_user_dir and isdir(dragonfly_user_dir):
+        if dragonfly_user_dir and os.path.isdir(dragonfly_user_dir):
             logging.info(f'DragonflyUserDirectory is already defined: "{dragonfly_user_dir}"\n\tto change, first clear (option "D") and then set again')
             logging.info('\nWhen you want to upgrade Dragonfly, also first clear ("D"), then choose this option ("d") again.\n')
             return
@@ -446,6 +511,7 @@ class NatlinkConfig:
     def enable_vocola(self, arg):
         """enable vocola, by setting arg (prompting if False), and other settings
         """
+        self.status.refresh()
         vocola_user_dir = self.status.getVocolaUserDirectory()
         if self.status.vocolaIsEnabled(): 
         # if vocola_user_dir and isdir(vocola_user_dir):
@@ -470,7 +536,7 @@ class NatlinkConfig:
             except subprocess.CalledProcessError:
                 logging.info('====\ncould not pip install vocola2\n====\n')
                 return
-        self.status.refresh()   # refresh status
+        # self.status.refresh()   # refresh status
         voc_dir = self.status.getVocolaDirectory()
 
         self.setDirectory('VocolaUserDirectory', arg, section='vocola')
@@ -494,8 +560,18 @@ class NatlinkConfig:
             
         self.setDirectory('vocoladirectory','vocola2')  #always vocola2
         self.setDirectory('vocolagrammarsdirectory', vocGrammarsDir)
-        self.copyUnimacroIncludeFile()
-        
+
+        if self.status.getVocolaTakesUniactions():
+            self.copyUniactionsIncludeFile()
+            self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=True)
+            self.includeUniactionsVchLineInVocolaFiles()
+        else:
+            self.removeUniactionsVchLineInVocolaFiles()
+            
+        # with new language versios ordering of directories, paths to include lines can be broken:
+        # invalid include lines are commented out.
+        self.checkVocolaIncludeLines()  # previous obsolete lines, but also current, with language versions.
+        self.status.refresh()
 
     def disable_vocola(self, arg=None):
         """disable vocola, arg not needed/used
@@ -508,170 +584,209 @@ class NatlinkConfig:
 
     disable_vocola2 = disable_vocola
 
-    def copyUnimacroIncludeFile(self):
-        """copy Unimacro include file into Vocola user directory
-
+    def copyUniactionsIncludeFile(self):
+        """copy Uniactions include file into Vocola user directory
         """
-        uscFile = 'Unimacro.vch'
+        uacFile = 'Uniactions.vch'
+        # also remove the previous version Unimacro.vch
         # also remove usc.vch from VocolaUserDirectory
         dtactionsDir = Path(self.status.getDtactionsDirectory())
         fromFolder = Path(dtactionsDir)/'Vocola_compatibility'
         toFolder = Path(self.status.getVocolaUserDirectory())
         if not dtactionsDir.is_dir():
-            mess = f'copyUnimacroIncludeFile: dtactionsDir "{str(dtactionsDir)}" is not a directory'
+            mess = f'copyUniactionsIncludeFile: dtactionsDir "{str(dtactionsDir)}" is not a directory'
             logging.warning(mess)
             return
-        fromFile = fromFolder/uscFile
+        fromFile = fromFolder/uacFile
         if not fromFile.is_file():
-            mess = f'copyUnimacroIncludeFile: file "{str(fromFile)}" does not exist (is not a valid file)'
+            mess = f'copyUniactionsIncludeFile: file "{str(fromFile)}" does not exist (is not a valid file)'
             logging.warning(mess)
             return
         if not toFolder.is_dir():
-            mess = f'copyUnimacroIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
+            mess = f'copyUniactionsIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
             logging.warning(mess)
             return
         
-        toFile = toFolder/uscFile
+        toFile = toFolder/uacFile
         if toFolder.is_file():
             logging.info(f'remove previous "{str(toFile)}"')
             try:
                 os.remove(toFile)
             except:
-                mess = f'copyUnimacroIncludeFile: Could not remove previous version of "{str(toFile)}"'
+                mess = f'copyUniactionsIncludeFile: Could not remove previous version of "{str(toFile)}"'
                 logging.info(mess)
         try:
             shutil.copyfile(fromFile, toFile)
-            logging.info(f'copied "{uscFile}" from "{str(fromFolder)}" to "{str(toFolder)}"')
+            logging.info(f'copied "{uacFile}" from "{str(fromFolder)}" to "{str(toFolder)}"')
         except:
-            mess = f'Could not copy new version of "{uscFile}", from "{str(fromFolder)}" to "{str(toFolder)}"'
+            mess = f'Could not copy new version of "{uacFile}", from "{str(fromFolder)}" to "{str(toFolder)}"'
             logging.warning(mess)
             return
         return
 
-    def removeUnimacroIncludeFile(self):
+    def removeUniactionsIncludeFile(self, keepValidIncludeLines=None):
         """remove Unimacro include file from Vocola user directory
 
         """
-        uscFile = 'Unimacro.vch'
-        # also remove usc.vch from VocolaUserDirectory
+        uscFiles = ['Unimacro.vch', 'Uniactions.vch', 'usc.vch']
+        # also remove previous files unimacro.vch and usc.vch from VocolaUserDirectory
         toFolder = Path(self.status.getVocolaUserDirectory())
         if not toFolder.is_dir():
-            mess = f'removeUnimacroIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
+            mess = f'removeUniactionsIncludeFile: vocolaUserDirectory does not exist "{str(toFolder)}" (is not a directory)'
             logging.warning(mess)
             return
-        
-        toFile = toFolder/uscFile
-        if toFolder.is_file():
-            logging.info(f'remove Unimacro include file "{str(toFile)}"')
-            try:
-                os.remove(toFile)
-            except:
-                mess = f'copyUnimacroIncludeFile: Could not remove previous version of "{str(toFile)}"'
-                logging.warning(mess)
+        for f in uscFiles:
+            toFile = toFolder/f
+            if toFile.is_file():
+                logging.info(f'remove Uniactions include file "{str(toFile)}"')
+                try:
+                    os.remove(toFile)
+                except:
+                    mess = f'copyUniactionsIncludeFile: Could not remove previous version of "{str(toFile)}"'
+                    logging.warning(mess)
 
-    def includeUnimacroVchLineInVocolaFiles(self, toFolder=None):
-        """include the Unimacro wrapper support line into all Vocola command files
+       
+    def checkVocolaIncludeLines(self):
+        """do an include or a removal of these lines in all current Vocola files
         
-        as a side effect, set the variable for Unimacro in Vocola support:
-        VocolaTakesUnimacroActions...
+        This should be carried out at enable of Vocola and
+        at change of the option "a", VocolaTakesUniactions
+        
+        Also check possible problems with paths to include lines ("../enx", "..", ...)
+        that can arise with changed (multiple languages) configurations.
+        
+        Vocola must be enabled.
         """
-        uscFile = 'Unimacro.vch'
-        oldUscFile = 'usc.vch'
-##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
-##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
-
-        # also remove includes of usc.vch
-        vocUserDir = self.status.getVocolaUserDirectory()   
-        toFolder = toFolder or vocUserDir
-        subDirectory = toFolder != vocUserDir
-        if subDirectory:
-            includeLine = f'include ..\\{uscFile};\n'
-            oldIncludeLines = [f'include {oldUscFile};',
-                               f'include ..\\{oldUscFile};',
-                               f'include {uscFile};'
-                               ]
+        if not self.status.vocolaIsEnabled():
+            return
+        if self.status.getVocolaTakesUniactions():
+            self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=True)
+            self.includeUniactionsVchLineInVocolaFiles()
         else:
-            includeLine = f'include {uscFile};\n'
-            oldIncludeLines = [f'include {oldUscFile};',
-                               f'include ..\\{oldUscFile};',
-                               f'include ..\\{uscFile};'
-                               ]
+            self.removeUniactionsVchLineInVocolaFiles()
+        self.checkVocolaIncludeLinesValidPath()
+
+    def includeUniactionsVchLineInVocolaFiles(self, subFolder=None):
+        """include the Uniactions wrapper support line into all Vocola command files
+        
+        Do this for the VocolaUserDirectory and sub directories (of non english languages,
+        "nld", "esp", etc).
+        
+        The call from the natlinkconfig_cli (and therefore natlinkconfig_gui) should be
+        without the subFolder specified.
+        (tested in test_vocola_uniactions_include_lines_on_and_off and
+        test_vocola_include_lines_take_uniactions_off (test_natlinkconfig.py))
+        """
+        uacFile = 'Uniactions.vch'
+        includeLine = f'include {uacFile};'  # for 'enx' language
+          
+        todoFolder = self.status.getVocolaUserDirectory()
+
+        recursive = bool(subFolder)
+        if recursive:
+            # recursive call, non enx directories:
+            includeLine = f'include ..\\{uacFile};'
+            todoFolder = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return False
             
-        if not os.path.isdir(toFolder):
-            if subDirectory:
-                mess = f'cannot find Vocola command files in sub directory, not a valid path: {toFolder}'
-            else:
-                mess = f'cannot find Vocola command files in irectory, not a valid path: {toFolder}'
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
             logging.warning(mess)
             return mess
-        
-        nFiles = 0
-        for f in os.listdir(toFolder):
-            if f.endswith(".vcl"):
-                F = os.path.join(toFolder, f)
-                changed = 0
-                correct = 0
+        changedFilesLanguage = 0
+        changedFiles = 0
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl") or f.endswith(".vch"):
+                got_include_line = False
                 Output = []
-                for line in open(F, 'r'):
-                    if line.strip().lower() == includeLine.strip().lower():
-                        correct = 1
-                    for oldLine in oldIncludeLines:
-                        if line.strip().lower() == oldLine.lower():
-                            changed += 1
-                            break
-                    else:
-                        Output.append(line)
-                if changed or not correct:
-                    # print(f'{F}: wrong lines: {changed}, had correct line: {bool(correct)}')   # changes were made:
-                    if not correct:
-                        # print(f'\tinclude: "{includeLine.strip()}"')
-                        Output.insert(0, includeLine)
-                    open(F, 'w').write(''.join(Output))
-                    nFiles += 1
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    Output.append(line)
+                    if line == includeLine:
+                        got_include_line = True
+                if not got_include_line:
+                    Output.insert(0, includeLine)
+                    rwfile.writeAnything(F, Output)
+                    changedFiles += 1
             elif len(f) == 3:
-                # subdirectory, recursive
-                self.includeUnimacroVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
-        mess = f'changed {nFiles} files in {toFolder}'
-        logging.warning(mess)
-        return True
+                changedFilesLanguage = self.includeUniactionsVchLineInVocolaFiles(subFolder=f)
 
-    def removeUnimacroVchLineInVocolaFiles(self, toFolder=None):
-        """remove the Unimacro wrapper support line into all Vocola command files
-        
-        toFolder set with recursive calls...
-        """
-        uscFile = 'Unimacro.vch'
-        oldUscFile = 'usc.vch'
-##        reInclude = re.compile(r'^include\s+.*unimacro.vch;$', re.MULTILINE)
-##        reOldInclude = re.compile(r'^include\s+.*usc.vch;$', re.MULTILINE)
-        
-        # also remove includes of usc.vch
-        if toFolder:
-            pass            # for recursive call language subfolders:
+        # self.disableVocolaTakesUniactions()
+        if recursive:
+            if changedFiles:
+                mess = f'Put include line in {changedFiles} files in language folder {subFolder}'
+                return changedFiles
         else:
-            toFolder = self.status.getVocolaUserDirectory()
+            if changedFiles:
+                mess = f'Put include line in {changedFiles} files in {todoFolder} ("enx" language)'
+                logging.warning(mess)
             
-        oldIncludeLines = [f'include {oldUscFile};',
-                           f'include ..\\{oldUscFile};',
-                           f'include {uscFile};',
-                           f'include ..\\{uscFile};',
-                           f'include ../{oldUscFile};',
-                           f'include ../{uscFile};',
-                           ]
+            changedFiles += changedFilesLanguage
+            # if changedFiles:
+            #     mess = f'Total changed {changedFiles} files in {todoFolder} and sub folders'
+            #     
+            #     logging.warning(mess)
 
-            
-        if not os.path.isdir(toFolder):
-            mess = f'cannot find Vocola command files directory, not a valid path: {toFolder}'
+        return True
+    
+    
+    def removeUniactionsVchLineInVocolaFiles(self, keepValidIncludeLines=None, subFolder=None):
+        """remove the Uniactions wrapper support line into all Vocola command files
+        
+        remove all include lines to "Uniactions.vch" and previous names of this file.
+        
+        Do this for safety before includeUniactionsVchLineInVocolaFiles!
+        
+        todoFolder is called with recursive calls when language sub directories exist...
+        """
+        uscFiles = ['Uniactions.vch', 'usc.vch', 'Unimacro.vch']
+        # also remove includes of usc.vch
+        todoFolder = self.status.getVocolaUserDirectory()
+        recursive = bool(subFolder)
+        validIncludeLine = 'include Uniactions.vch;' if keepValidIncludeLines else ''
+        
+        
+        
+        toRemoveLines = []
+        for inc in uscFiles:
+            toRemoveLines.append(f'include {inc};')
+            toRemoveLines.append(fr'include ..\{inc};')
+            toRemoveLines.append(fr'include ..\{inc};')
+            toRemoveLines.append(f'include ../{inc};')
+
+        if recursive:
+            # language subfolder
+            validIncludeLine = 'include ..\\Uniactions.vch;' if keepValidIncludeLines else ''
+                
+            todoFolder  = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return True
+
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
             logging.warning(mess)
-            return mess
-        nFiles = 0
-        for f in os.listdir(toFolder):
-            F = os.path.join(toFolder, f)
-            if f.endswith(".vcl"):
+            return False
+        changedFiles = 0
+        changedFilesLanguage = 0
+        
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl") or f.endswith(".vch"):
                 changed = 0
                 Output = []
-                for line in open(F, 'r'):
-                    for oldLine in oldIncludeLines:
+                firstLine = True
+                
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    if firstLine and keepValidIncludeLines:
+                        # keep the valid include line if at top of the file:
+                        if line.strip() == validIncludeLine:
+                            firstLine = False
+                            continue
+                    firstLine = False
+                    for oldLine in toRemoveLines:
                         if line.strip().lower() == oldLine.lower():
                             changed = 1
                             break
@@ -679,49 +794,326 @@ class NatlinkConfig:
                         Output.append(line)
                 if changed:
                     # had break, so changes were made:
-                    open(F, 'w').write(''.join(Output))
-                    nFiles += 1
+                    rwfile.writeAnything(F, Output)
+                    changedFiles += 1
             elif len(f) == 3:
-                self.removeUnimacroVchLineInVocolaFiles(toFolder=os.path.join(toFolder, f))
-        # self.disableVocolaTakesUnimacroActions()
-        mess = f'removed include lines from {nFiles} files in {toFolder}'
-        logging.warning(mess)
+                changedFilesLanguage  = self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=keepValidIncludeLines,
+                                                                                  subFolder=f)
+                if isinstance(changedFilesLanguage, int):
+                    changedFiles += changedFilesLanguage
+        # self.disableVocolaTakesUniactions()
+        if recursive:
+            if changedFiles:
+                mess = f'Removed invalid Uniactions include line in {changedFiles} files in language folder {subFolder}'
+        else:
+            if changedFiles:
+                mess = f'Removed invalid Uniactions include line from {changedFiles} files in {todoFolder} ("enx" language)'
+                logging.info(mess)
+
+        return True
+    
+    def checkVocolaIncludeLinesValidPath(self, subFolder=None):
+        """check validity of include lines in vocola command files.
+        
+        Also correct Unimacro(...) commands into Usc(...).
+        errors can be caused with new multi languages configurations, the "enx" directory is no
+        longer available.
+
+        """
+        isfile, join = os.path.isfile, os.path.join
+        todoFolder = self.status.getVocolaUserDirectory()
+        recursive = bool(subFolder)
+
+        if recursive:
+            todoFolder  = os.path.join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return True
+
+        if not os.path.isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
+            logging.warning(mess)
+            return False
+        changedFiles = 0
+        changedFilesLanguage = 0
+        
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl") or f.endswith(".vch"):
+                changes = 0
+                Output = []
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    if (not (line.startswith('include')) or line.startswith('#invalidfile#')) or  line.find('=') > 0:
+                        # hard to check whether line is changed or not, so add to it:
+                        newLine = line.replace('Unimacro(', 'Usc(') if line.find('Unimacro(') > 0 else line
+                        changes += self.outputReportChange(Output, newLine, oldLine=line)
+                        continue
+                    incRelPath = line.split(maxsplit=1)[1].replace(';', '').strip()
+                    incRelPath = incRelPath.strip('"').strip("'").strip('"')
+                    incRelPath = incRelPath.replace('/', '\\')
+                    if isfile(join(todoFolder, incRelPath)):
+                        newLine = f'include {incRelPath};'
+                        changes += self.outputReportChange(Output, newLine, oldLine=line)
+                        continue
+                    if recursive:
+                        # change ..\\enx to ..\\
+                        if incRelPath.startswith('..\\enx'):
+                            incRel2 = incRelPath.replace('\\enx', '')
+                            if isfile(join(todoFolder, incRel2)):
+                                newLine = f'include {incRel2};'
+                                changes += self.outputReportChange(Output, newLine, oldLine=line)
+                                continue
+                    else:
+                        if incRelPath.startswith('..\\'):
+                            incRel2 = incRelPath.replace('..\\', '')
+                            if isfile(join(todoFolder, incRel2)):
+                                newLine = f'include {incRel2};'
+                                changes += self.outputReportChange(Output, newLine, oldLine=line)
+                                continue
+                    # incRelPath NOT a file:
+                    newLine = f'#invalidfile#include {incRelPath};' 
+                    changes += self.outputReportChange(Output, newLine, oldLine=line)
+
+                if changes:
+                    # had break, so changes were made:
+                    rwfile.writeAnything(F, Output)
+                    changedFiles += 1
+            elif len(f) == 3:
+                changedFilesLanguage  = self.checkVocolaIncludeLinesValidPath(subFolder=f)
+                if isinstance(changedFilesLanguage, int):
+                    changedFiles += changedFilesLanguage
+        # self.disableVocolaTakesUniactions()
+        if recursive:
+            if changedFiles:
+                mess = f'Changed path of include line in {changedFiles} files in language folder {subFolder}'
+        else:
+            if changedFiles:
+                mess = f'Changed path of include line in {changedFiles} files in {todoFolder} ("enx" language)'
+                logging.info(mess)
+
+        return True
+    
+    def outputReportChange(self, Output, newLine, oldLine):
+        """return 1 if line changed, 0 otherwise
+        """
+        Output.append(newLine)
+        return int(newLine.strip() != oldLine)
+
+    def checkUscLinesInVocolaFiles(self, subFolder=None):
+        """check vocola files for invalid or commented Usc commands
+        
+        When VocolaTakesUniactions is switched on, commented previous lines with Usc
+        should be re-activated
+        Older command lines with previous "Unimacro" prefix are changed into "Usc"
+        """
+        join, isdir = os.path.join, os.path.isdir
+        todoFolder = self.status.getVocolaUserDirectory()
+        UscIsOn = self.status.getVocolaTakesUniactions()
+        
+        recursive = bool(subFolder)
+        todoFolder = self.status.getVocolaUserDirectory()
+
+        if recursive:
+            changedFilesLanguage = 0
+            todoFolder = join(todoFolder, subFolder)
+            if not os.path.isdir(todoFolder):
+                return False
+            
+        if not isdir(todoFolder):
+            mess = f'cannot find Vocola command files directory, not a valid path: {todoFolder}'
+            logging.warning(mess)
+            return mess
+        changedFiles = 0
+        for f in os.listdir(todoFolder):
+            F = os.path.join(todoFolder, f)
+            if f.endswith(".vcl") or f.endswith(".vch"):
+                got_changes = 0
+                multiple_command = []
+                Output = []
+
+                rwfile = ReadWriteFile()
+                for line in rwfile.readAnythingLines(F):
+                    if UscIsOn:    #remove #Usc%# comments no need of mutiline commands
+                        corrected_line = self.CorrectLineUsc(line, UscIsOn)
+                    else:
+                        if line.startswith('#') or not line.strip():
+                            if multiple_command:
+                                multiple_command.append(line)
+                                continue
+                        if not line.rstrip().endswith(";"):
+                            multiple_command.append(line)
+                            continue
+                        # end multiple command lines:
+                        # if one line (normal case) multiple_command will only contain this line
+                        multiple_command.append(line)
+                        
+                        corrected_line = self.CorrectLineUsc(multiple_command, UscIsOn)
+                        multiple_command = []
+                    if corrected_line != line:
+                        got_changes += 1
+                        Output.append(corrected_line)
+                    else:
+                        Output.append(line)
+                if got_changes:
+                    rwfile.writeAnything(F, Output)
+
+                    mess = f'correcting .vcl file enx in {f}, {got_changes} changes'
+                    logging.debug(mess)
+                    changedFiles += 1
+            elif len(f) == 3:
+                changedFilesLanguage = self.checkUscLinesInVocolaFiles(subFolder=f)
+                if changedFilesLanguage:
+                    mess = f'correcting .vcl file "{subFolder}\\{f}": {changedFilesLanguage} changed'
+                    logging.info(mess)
+                    changedFiles  += changedFilesLanguage
+        
+        
+        if recursive:
+            return changedFilesLanguage
+        
+        if not recursive:
+            mess = f'correcting .vcl files, changed {changedFiles} files in {todoFolder} and sub folders'
+            logging.info(mess)
 
         return True
 
-    def enableVocolaTakesLanguages(self):
-        """setting registry  so Vocola can divide different languages
-
+    def getUscCommands(self):
+        """get a list of all Usc commands, put in "AllUscCommands"
+        
+        Include Unimacro.
         """
-        key = "vocolatakeslanguages"
-        self.config_set('vocola', key, 'True')
+        join, isfile = os.path.join, os.path.isfile
+        if self.AllUscCommands is not None:
+            return self.AllUscCommands
+        File = join(self.status.getDtactionsDirectory(), 'vocola_compatibility', 'Uniactions.vch')
+        assert isfile(File)
+        Commands = {'Unimacro', 'Usc'}
+        rwfile = ReadWriteFile()
+        for line in rwfile.readAnythingLines(File):
+            if line.startswith('#'):
+                continue
+            if line.find('(') > 0:
+                com = line.split('(', 1)[0]
+                Commands.add(com)
+        if not Commands:
+            logging.warning('getUscCommands, no Usc command lines found in {File}.')
+            self.AllUscCommands = []
+            return []
+        self.AllUscCommands = list(Commands)
+        return self.AllUscCommands
+            
+
+    def CorrectLineUsc(self, lines, uscIsOn):
+        """correct vocola line, depending on the uscIsOn variable
+        
+        tests in test_vocola_regular_expressions (test_natlinkconfig.py)
+        """
+        UscCommands = self.getUscCommands()
+        assert isinstance(UscCommands, list)
+        assert len(UscCommands) > 0
+        
+        insideBrackets = '|'.join(UscCommands)
+        reExpr = rf'\b({insideBrackets})[(]'
+        reUsc = re.compile(reExpr)
+        
+        reOldPrefix = re.compile(r'\b(Unimacro)(?=\()')
+        Comment = "#Usc#"
+        if uscIsOn:
+            # just removing #Usc# from commented lines:
+            assert isinstance(lines, str)
+            line = lines
+            if line.startswith(Comment):
+                line = line[5:]
+                
+            if not line.startswith('#') and line.find('=') > 0:
+                # try to change "Unimacro" into "Usc"
+                com, act = line.split('=', 1)
+                m = reOldPrefix.search(act)
+                if m:
+                    act2 = act.replace('Unimacro(', 'Usc(')
+                    line = f'{com}={act2}'
+            return line
+
+        # UscIsOff, making #Usc# comment lines
+        # this can be multiline!!!
+        if isinstance(lines, str):
+            lines = [lines]
+        had_equal = False
+        has_usc = False
+        multiple = []
+        # commandPart = line.split('=', 1)[1]
+        for li in lines:
+            if li.startswith('#'):
+                multiple.append(li)
+                continue
+            m = None
+            if not had_equal and li.find('=') > 0:
+                act = li.split('=', 1)[1]
+                had_equal = True
+                m = reUsc.search(act)
+                has_usc = has_usc or bool(m)
+            elif had_equal:
+                m = reUsc.search(li)
+                has_usc = has_usc or bool(m)
+        if has_usc:
+            lines = [l.replace('Unimacro(', 'Usc(') for l in lines]
+            lines = [Comment + l for l in lines if not l.startswith(Comment)]
+        return '\n'.join(lines)
+                    
         
 
-    def disableVocolaTakesLanguages(self):
-        """disables so Vocola cannot take different languages
-        """
-        key = "vocolatakeslanguages"
-        self.config_set('vocola', key, 'False')
 
-    def enableVocolaTakesUnimacroActions(self):
+    # def enableVocolaTakesLanguages(self):
+    #     """setting registry  so Vocola can divide different languages
+    # 
+    #     """
+    #     key = "vocolatakeslanguages"
+    #     self.config_set('vocola', key, 'True')
+    #     
+    # 
+    # def disableVocolaTakesLanguages(self):
+    #     """disables so Vocola cannot take different languages
+    #     """
+    #     key = "vocolatakeslanguages"
+    #     self.config_set('vocola', key, 'False')
+
+    def enableVocolaTakesUniactions(self):
         """do setting, so Vocola can take Unimacro Actions
-        also include correct include line in each Vcl file
-        and copy Unimacro.vch to the VocolaUserDirectory
-
+        
+        1. copy the include file "Uniactions.vch" to the VocolaUserDirectory
+        2. remove invalid and older variants of the include file line (keep the current!)
+        3. insert an include line in each vocola command file
+           
         """
-        key = "vocolatakesunimacroactions"
+        key = "VocolaTakesUniactions"
+        if not self.status.vocolaIsEnabled():
+            print('\n==========================\nenableVocolaTakesUniactions: Vocola is not enabled, please enable Vocola first!\n')
+            return
+        
         self.config_set('vocola', key, 'True')
-        self.includeUnimacroVchLineInVocolaFiles()
-        self.copyUnimacroIncludeFile()
+        # this one is to ensure that erroneous or old include lines are removed:
+        self.removeUniactionsVchLineInVocolaFiles(keepValidIncludeLines=True)
+        self.includeUniactionsVchLineInVocolaFiles()
+        self.checkUscLinesInVocolaFiles()
+        # remove previous versions...
+        self.removeUniactionsIncludeFile()
+        self.copyUniactionsIncludeFile()
 
-    def disableVocolaTakesUnimacroActions(self):
-        """disables so Vocola does not take Unimacro Actions
-        and remove Unimacro.vch and the include lines in each .vcl file
+    def disableVocolaTakesUniactions(self):
+        """disables this option, so Vocola does not take Uniactions any more
+        
+        Remove "Uniactions.vch" and the include lines in each .vcl file
         """
-        key = "vocolatakesunimacroactions"
+        key = "VocolaTakesUniactions"
+
+        if not self.status.vocolaIsEnabled():
+            print('\n==========================\ndisableVocolaTakesUniactions: Vocola is not enabled, please enable Vocola first!\n')
+            return
+
         self.config_set('vocola', key, 'False')
-        self.removeUnimacroVchLineInVocolaFiles()
-        self.removeUnimacroIncludeFile()
+        self.removeUniactionsVchLineInVocolaFiles()
+        self.checkUscLinesInVocolaFiles()
+        self.removeUniactionsIncludeFile()
         
     def openConfigFile(self):
         """open the natlink.ini config file
@@ -829,6 +1221,28 @@ def createIfNotThere(path_name, level_up=None):
         print(f'created directory "{path_name}": "{start_path}"')
         
     return start_path
+
+def get_folder_dict(folderpath):
+    """return the contenst in a dict, assume all text files
+    
+    rstrip all lines
+    """
+    join = os.path.join
+    D = {}
+    folderdir = str(folderpath)
+    len_prefix = len(folderdir)
+    
+    for dirpath, _dirnames, files in os.walk(folderdir):
+        # print(f'Found directory: {dirpath}')
+        subdir = dirpath[len_prefix+1:]
+        key_prefix = f'{subdir}---' if subdir else ''
+        for fi in files:
+            with open(join(dirpath, fi), 'r') as f:
+                lines = [line.rstrip(' \n') for line in f if line.strip()]
+            D[key_prefix + fi] = lines if len(lines) <= 20 else '> 20 lines'
+            
+    return D
+
 
 if __name__ == "__main__":
     _nc = NatlinkConfig()

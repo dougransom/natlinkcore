@@ -89,7 +89,7 @@ getVocolaGrammarsDirectory: get the directory, where the compiled Vocola grammar
     This will be the `CompiledGrammars` subdirectory of `~/.vocolaGrammars` or
     `%NATLINK_SETTINGSDIR%/.vocola`.
 
-getVocolaTakesLanguages: additional settings for Vocola
+getVocolaTakesLanguages: additional settings for Vocola, now obsolete: always True
 
 new 2014/2022
 getDNSName: return "NatSpeak" for versions <= 11 and "Dragon" for 12 (on) (obsolete in 2022)
@@ -117,9 +117,6 @@ from natlinkcore import singleton
 # # # natlinkmain = loader.NatlinkMain()
 
 ## setting up Logger and Config is needed, when running this for test:
-Logger = logging.getLogger('natlink')
-Config = config.NatlinkConfig.from_first_found_file(loader.config_locations())
-natlinkmain = loader.NatlinkMain(Logger, Config)
 
 # the possible languages (for get_language), now in loader
 
@@ -150,6 +147,10 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def __init__(self):
         """initialise all instance variables, in this singleton class, (only one instance)
         """
+        Logger = logging.getLogger('natlink')
+        Config = config.NatlinkConfig.from_first_found_file(loader.config_locations())
+        natlinkmain = loader.NatlinkMain(Logger, Config)
+
         self.natlinkmain = natlinkmain  # global
         self.DNSVersion = None
         self.DNSIniDir = None
@@ -575,8 +576,8 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def getVocolaUserDirectory(self):
 
         isdir, abspath = os.path.isdir, os.path.abspath
-        if self.VocolaUserDirectory is not None:
-            return self.VocolaUserDirectory
+        # if not self.VocolaUserDirectory is None:
+        #     return self.VocolaUserDirectory
         key = 'vocolauserdirectory'
         section = 'vocola'
         value =  self.natlinkmain.getconfigsetting(section=section, option=key)
@@ -742,9 +743,12 @@ class NatlinkStatus(metaclass=singleton.Singleton):
     def getVocolaTakesLanguages(self):
         """gets and value for distinction of different languages in Vocola
         If Vocola is not enabled, this option will also return False
+        
+        Obsolete option, always True.
         """
-        key = 'vocolatakeslanguages'
-        return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
+        return True
+        # key = 'vocolatakeslanguages'
+        # return  self.natlinkmain.getconfigsetting(section="vocola", option=key, func='getboolean')
     
     def getVocolaTakesUniactions(self):
         """gets and value for optional Vocola takes Uniactions (from dtactions)
@@ -783,7 +787,7 @@ class NatlinkStatus(metaclass=singleton.Singleton):
                     'DNSName', 'NatlinkIni', 'Natlink_Settingsdir',
                     'UnimacroDirectory', 'UnimacroUserDirectory', 'UnimacroGrammarsDirectory', 'UnimacroDataDirectory',
                     'VocolaDirectory', 'VocolaUserDirectory', 'VocolaGrammarsDirectory',
-                    'VocolaTakesLanguages', 'VocolaTakesUniactions',
+                    'VocolaTakesUniactions',
                     'UserDirectory',
                     'DragonflyDirectory', 'DragonflyUserDirectory',
                     'ExtraGrammarDirectories',
@@ -841,14 +845,14 @@ class NatlinkStatus(metaclass=singleton.Singleton):
         if D['vocolaIsEnabled']:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is enabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
-                        'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaGrammarsDirectory', 
                         'VocolaTakesUniactions',
                         ):
                 self.appendAndRemove(L, D, key)
         else:
             self.appendAndRemove(L, D, 'vocolaIsEnabled', "---Vocola is disabled")
             for key in ('VocolaUserDirectory', 'VocolaDirectory',
-                        'VocolaGrammarsDirectory', 'VocolaTakesLanguages',
+                        'VocolaGrammarsDirectory', 
                         'VocolaTakesUniactions'
                         ):
                 del D[key]

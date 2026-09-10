@@ -104,3 +104,5 @@ dist
 /src/natlinkcore/natlink.egg-info/
 /src/natlinkcore/requirements.txt
 /src/natlinkcore/test/config_files/directory_settings.ini
+/tests/Uniactions.vch
+/src/natlinkcore/configure/Uniactions.vch

@@ -66,7 +66,7 @@ class NatlinkConfig:
         return dirs
 
     @staticmethod
-    def from_config_parser(config: configparser.ConfigParser, config_path: str) -> 'NatlinkConfig':
+    def from_config_parser(config: configparser.ConfigParser, config_path: str, silent: bool = None) -> 'NatlinkConfig':
         ret = NatlinkConfig.get_default_config()
         ret.config_path = config_path
         sections = config.sections()
@@ -94,14 +94,22 @@ class NatlinkConfig:
                     if directory.find('site-packages') > 0:
                         package_name = Path(directory).stem
                         print(f'====Invalid input in configuration file "natlink.ini", section "directories":\n\tSkip name: {name}, directory: {directory}\n\tWhen you want to include a directory in site-packages, only specify the package name "{package_name}"')
+                        print('*** Please edit your "natlink.ini" file manually!')
                         continue
                     ## allow environment variables (or ~) in directory
                     directory_expanded = expand_path(directory)
+                    if not directory_expanded:
+                        print(f'*** from_config_parser: skip "{directory}" ("{name}"):')
+                        print('*** does not expand to a valid directory')
+                        print('*** Skip this directory for now.')
+                        print('*** Please edit your "natlink.ini" file manually!')
+                        continue
+                        
                     if not os.path.isdir(directory_expanded):
-                        print (f'from_config_parser: skip "{directory}" ("{name}"): is not a valid directory' if 
-                            directory_expanded == directory 
-                        else
-                            f'from_config_parser: skip "{directory}" ("{name}"):\n\texpanded to directory "{directory_expanded}" is not a valid directory')
+                        print (f'*** from_config_parser: skip "{directory}" ("{name}"): does not expand')
+                        print(f'*** to a valid directory {directory_expanded}.')
+                        print('*** Skip this directory for now.')
+                        print('*** Please edit your "natlink.ini" file manually!')
                         continue
                     directories.append(directory_expanded)
 
@@ -129,7 +137,7 @@ class NatlinkConfig:
     @classmethod
     def from_first_found_file(cls, files: Iterable[str]) -> 'NatlinkConfig':
         isfile = os.path.isfile
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         for fn in files:
             if not isfile(fn):
                 continue
@@ -178,8 +186,25 @@ When there is nothing to expand, just return the input
         home_expanded = home + input_dir[1:]
         # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
         if must_exist:
-            assert isdir(home_expanded)
+            if not isdir(home_expanded):
+                print(f'\n*** Error: directory does not exist: "{input_dir}"\n*** Expanded to "{home_expanded}"\n***\n')
+                return ''
         return normpath(home_expanded)
+
+    if input_dir.startswith('%'):
+        input_dir2 = expandvars(input_dir)
+        if input_dir2.startswith('%'):
+            print(f'\n*** Error: expand_path of "{input_dir}" does not work, result is still the same')
+            return ''
+        # print(f'expand_path: "{input_dir}" include "~": expanded: "{env_expanded}"')
+        if must_exist:
+            if not isdir(input_dir2):
+                print(f'\n*** Error: directory does not exist: "{input_dir}"\n*** Expanded to "{input_dir2}"\n***\n')
+                return ''  
+        return normpath(input_dir2)
+    
+    
+    
     
     if isdir(input_dir):
         return normpath(input_dir)
@@ -255,22 +280,27 @@ When there is nothing to expand, just return the input
 def expand_natlink_settingsdir():
     """Return the location of the natlink config files
     
-    if NATLINK_SETTINGSDIR is set: return this, but... it should end with ".natlink"
-    if NATLINK_SETTINGSDIR is NOT set: return `Path.home()/'.natlink'`
+    if NATLINK_SETTINGSDIR is set: return this, but... it should end with ".natlink" or "Natlink"
+    if NATLINK_SETTINGSDIR is NOT set: return `%localappdata%/'Natlink'`
     """
-    normpath = os.path.normpath
+    normpath, join, isfile = os.path.normpath, os.path.join, os.path.isfile
     nsd = os.getenv('natlink_settingsdir')
     if nsd:
         if not os.path.isdir(nsd):
             # this one should not happen, because .natlink is automatically created when it does not exist yet...
-            raise OSError(f'Environment variable "NATLINK_SETTINGSDIR" should hold a valid directory, ending with ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, and go back to the default directory (~\\.natlink)\n')
+            raise OSError(f'Environment variable "NATLINK_SETTINGSDIR" should hold a valid directory, ending with "Natlink" or ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, and go back to the default directory (%localappdata%\\Natlink)\n')
             
-        if not normpath(nsd).endswith('.natlink'):
-            raise ValueError(f'Environment variable "NATLINK_SETTINGSDIR" should end with ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, returning to the default directory (~\\.natlink)\n')
+        if not (normpath(nsd).endswith('.natlink') or normpath(nsd).endswith('Natlink')):
+            raise ValueError(f'Environment variable "NATLINK_SETTINGSDIR" should end with "Natlink" or ".natlink", not: "{nsd}"\n\tCreate your directory likewise or remove this environment variable, returning to the default directory (%localappdata%\\Natlink)\n')
     else:
-        nsd = str(Path.home()/'.natlink')
+        nsd = str('%localappdata%/Natlink')
         
     nsd = normpath(expand_path(nsd))
+    if not os.path.isdir(nsd):
+        raise OSError(f'directory "{nsd}" for Natlink configuration file "natlink.ini" not found, please run "Configure Natlink with GUI" or "Configure Natlink with CLI"')
+    nlini = join(nsd, 'natlink.ini')
+    if not isfile(nlini):
+        print('Warning: file natlink.ini not found in directory: {nsd}, Please run your config program: "Configure Natlink with GUI" or "Configure Natlink with CLI".')
     # if not nsd.endswith('.natlink'):
     #     raise ValueError(f'expand_natlink_settingsdir: directory "{nsd}" should end with ".natlink"\n\tprobably you did not set the windows environment variable "NATLINK_SETTINGSDIR" incorrect, let it end with ".natlink".\n\tNote: if this ".natlink" directory does not exist yet, it will be created there.')
     return nsd
