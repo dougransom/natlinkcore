@@ -2,13 +2,21 @@
 
 Example:
 ```
->>> rwfile = ReadWriteFile()
->>> input_path = 'path/to/input_file'
->>> result = rwfile.readAnything(input_path)
->>> print(f'encoding: "{rwfile.encoding}", bom: "{rwfile.bom}")
->>> output_string = result + 'new text\n'
->>> output_path = 'path/to/output_file'
->>> rwfile.writeAnything(output_path, output_string)
+    rwfile = ReadWriteFile()
+    input_path = 'path/to/input_file'
+    result = rwfile.readAnything(input_path)
+    print(f'encoding: "{rwfile.encoding}", bom: "{rwfile.bom}")
+    output_string = result + 'new text\n'
+    output_path = 'path/to/output_file'
+    rwfile.writeAnything(output_path, output_string)
+```
+
+As parallel with "readlines" from a file, you can call:
+```
+    rwfile = ReadWriteFile()
+    input_path = 'path/to/input_file'
+    for line in rwfile.readAnythingLines(input_path):
+        pass
 ```
 
 The "bom mark" is sometimes/especially the case with the ini files of the Dragon program
@@ -17,11 +25,11 @@ The "bom mark" is sometimes/especially the case with the ini files of the Dragon
     ```
     rwfile = ReadWriteFile()
     self.config_text = rwfile.readAnything(filepath)
-    Config = configparser.ConfigParser()
+    Config = configparser.ConfigParser(interpolation=None)
     Config.read_string(self.config_text)
     ```
 
-Quintijn Hoogenboom, 2018, March 2022
+Quintijn Hoogenboom, 2018, March 2022, September 2026
 """
 #pylint:disable=R0912
 import os
@@ -47,7 +55,13 @@ class ReadWriteFile:
     encode the output to another encoding, most often (default) 'utf-8'.
     
     When you need a 'utf-16le' encoding (for 'nsapps.ini' of Dragon),
-    pass `encodings = ['utf16-le']` when creating the instance. 
+    pass `encodings = ['utf16-le']` when creating the instance.
+    
+    Most used methods:
+        readAnything: read contents in a long string
+        readAnythingLines: stream a list of lines (separated with "\n" character)
+        writeAnything(outputfile): write the contents to a file with (mostly) same encoding and bom 
+    
     """
     def __init__(self, encodings=None):
         self.input_path = ''
@@ -59,6 +73,21 @@ class ReadWriteFile:
         self.encodings = encodings or ['ascii', 'utf-8', 'cp1252',  'latin-1']
         self.encoding = self.encodings[0]
 
+    
+    def readAnythingLines(self, input_path, encoding=None):
+        """read any file and deliver line by line
+        
+        tested in test_readwritefile.test_readwritefile
+        """
+        isfile = os.path.isfile
+        if not isfile(input_path):
+            print(f'readAnythingLines, not a valid input file: "{input_path}"')
+        T = self.readAnything(input_path, encoding=encoding)
+        if T.strip():
+            for line in T.split('\n'):
+                yield line.rstrip()
+        else:
+            yield ''
     
     def readAnything(self, input_path, encoding=None):
         """take any file and decode to (unocode) string

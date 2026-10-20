@@ -1,12 +1,15 @@
-#pylint:disable=W0621, W0703, W0603
+#pylint:disable=W0621, W0703, W0603, W1203
 import sys
 import platform
-
-import FreeSimpleGUI as sg
 import logging
-from platformdirs import  user_log_dir
+
 from pathlib import Path
 from argparse import ArgumentParser
+from platformdirs import  user_log_dir
+import FreeSimpleGUI as sg
+from natlinkcore.configure.natlinkconfigfunctions import NatlinkConfig
+from natlinkcore import natlinkstatus
+
 appname="natlink"
 logdir =  Path(user_log_dir(appname=appname,ensure_exists=True))
 logfilename=logdir/"config_gui_log.txt"
@@ -23,15 +26,13 @@ logfile_logger.setLevel(logging.DEBUG)
 
 
 # https://www.pysimplegui.org/en/latest/
-from natlinkcore.configure.natlinkconfigfunctions import NatlinkConfig
-from natlinkcore import natlinkstatus
 
 pyVersion = platform.python_version()
 osVersion = sys.getwindowsversion()
 
 parser=ArgumentParser(description="check for --pre")
 parser.add_argument('--pre',action='store_true',help='Enable pre-release mode')
-args=parser.parse_args();
+args=parser.parse_args()
 prerelease_enabled=args.pre
 del parser,args #no longer required
 logging.debug(f"prerelease_enabled: {prerelease_enabled} ")
@@ -48,7 +49,8 @@ SYMBOL_DOWN =  '▼'
 
 # Hidden Columns and Project State
 dragonfly2_state, unimacro_state, extras_state = Status.dragonflyIsEnabled(), Status.unimacroIsEnabled(), False
-
+# adding, QH
+vocola2_state = Status.vocolaIsEnabled()
 # Threaded perform_long_operation state
 Thread_Running = False
 
@@ -70,6 +72,9 @@ dragonfly2_section = [[sg.Text('Dragonfly', text_color='black')],
 unimacro_section = [[sg.T('Unimacro', text_color='black')],
                     [sg.T('Unimacro user directory:', tooltip=r'Where the Unimacro user INI files are located, and several other directories (~ or %HOME% allowed)'), sg.I(Status.getUnimacroUserDirectory(), key='Set_UserDir_Unimacro', enable_events=False, readonly=False), sg.FolderBrowse(), sg.B("Clear", key='Clear_UserDir_Unimacro', enable_events=True)]]
 
+vocola2_section = [[sg.T('Vocola2', text_color='black')],
+                    [sg.T('Vocola2 user directory:', tooltip=r'Where the Vocola2 command files are located (~ or %HOME% allowed)'), sg.I(Status.getVocola2UserDirectory(), key='Set_UserDir_Vocola2', enable_events=False, readonly=False), sg.FolderBrowse(), sg.B("Clear", key='Clear_UserDir_Vocola2', enable_events=True)]]
+
 extras_section = [[sg.T('Natlink Loglevel:'),  sg.Combo(default_value=Status.getLogging(), values=("Critical",  "Fatal",  "Error", "Warning", "Info" , "Debug"), key='Set_Logging_Natlink', enable_events=True, auto_size_text=True, readonly=True)],
                   [sg.T('Autohotkey exe dir:'), sg.I(Status.getAhkExeDir(), key='Set_Exe_Ahk', enable_events=False, readonly=False), sg.FolderBrowse(), sg.B("Clear", key='Clear_Exe_Ahk', enable_events=False)],
                   [sg.T('Autohotkey scripts dir:'), sg.I(Status.getAhkUserDir(), key='Set_ScriptsDir_Ahk', enable_events=False, readonly=False), sg.FolderBrowse(), sg.B("Clear", key='Clear_ScriptsDir_Ahk', enable_events=False)],
@@ -81,10 +86,13 @@ extras_section = [[sg.T('Natlink Loglevel:'),  sg.Combo(default_value=Status.get
 #### Main UI Layout ####
 layout = [[sg.T('Environment:', font='bold'), sg.T(f'Windows OS: {osVersion.major}, Build: {osVersion.build}'), sg.T(f'Python: {pyVersion}'), sg.T(f'Dragon Version: {Status.getDNSVersion()}')],
           #### Projects Checkbox ####
-          [sg.T('Configure Projects:', font='bold'), sg.Checkbox('Dragonfly', enable_events=True, key='dragonfly2-checkbox', default=dragonfly2_state), sg.Checkbox('Unimacro', enable_events=True, key='unimacro-checkbox', default=unimacro_state)],
+          [sg.T('Configure Projects:', font='bold'), sg.Checkbox('Dragonfly', enable_events=True, key='dragonfly2-checkbox', default=dragonfly2_state), sg.Checkbox('Unimacro', enable_events=True, key='unimacro-checkbox', default=unimacro_state), sg.Checkbox('Vocola2', enable_events=True, key='vocola2-checkbox', default=vocola2_state)],
           #### Projects Hidden UI Columns - See above ####
           [collapse(dragonfly2_section, 'dragonfly2', dragonfly2_state)],
           [collapse(unimacro_section, 'unimacro', unimacro_state)],
+          
+          [collapse(vocola2_section, 'vocola2', vocola2_state)],
+
           [sg.T(SYMBOL_DOWN, enable_events=True, k='extras-symbol-open', text_color='black'), sg.T('Natlink Extras', enable_events=True, text_color='black', k='extras-open')],
           [collapse(extras_section, 'extras', extras_state)],
           #### Buttons at bottom ####
@@ -142,6 +150,14 @@ def UnimacroUserDir(values, event):
         Config.disable_unimacro()
         window['Set_UserDir_Unimacro'].update("")
 
+# Vocola2
+def Vocola2UserDir(values, event):
+    if event.startswith('Set') and not ThreadIsRunning():
+        window.perform_long_operation(lambda: Config.enable_unimacro(values['Set_UserDir_Vocola2']), 'Thread_Done_Vocola2')
+    if event.startswith('Clear'):
+        Config.disable_vocola2()
+        window['Set_UserDir_Vocola2'].update("")
+
 # Autohotkey
 def AhkExeDir(values, event):
     if event.startswith('Set'):
@@ -165,6 +181,7 @@ def OpenNatlinkConfig(values, event):
 natlink_dispatch = {'Set_Logging_Natlink': SetNatlinkLoggingOutput, 'Open_Config': OpenNatlinkConfig}
 dragonfly2_dispatch = {'Set_UserDir_Dragonfly2': Dragonfly2UserDir, 'Clear_UserDir_Dragonfly2': Dragonfly2UserDir}
 unimacro_dispatch = {'Set_UserDir_Unimacro': UnimacroUserDir, 'Clear_UserDir_Unimacro': UnimacroUserDir}
+vocola2_dispatch = {'Set_UserDir_Vocola2': Vocola2UserDir, 'Clear_UserDir_Vocola2': Vocola2UserDir}
 autohotkey_dispatch = {'Set_Exe_Ahk': AhkExeDir, 'Clear_Exe_Ahk': AhkExeDir, 'Set_ScriptsDir_Ahk': AhkUserDir,'Clear_ScriptsDir_Ahk': AhkUserDir}
 
 #### Event Loop ####
@@ -196,6 +213,11 @@ try:
             unimacro_state = not unimacro_state
             window['unimacro-checkbox'].update(unimacro_state)
             window['unimacro'].update(visible=unimacro_state)
+
+        elif event.startswith('vocola2'):
+            vocola2_state = not vocola2_state
+            window['vocola2-checkbox'].update(vocola2_state)
+            window['vocola2'].update(visible=vocola2_state)
 
         elif event.startswith('extras'):
             window['extras-symbol-open'].update(SYMBOL_DOWN if extras_state else SYMBOL_UP)

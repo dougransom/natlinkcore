@@ -37,7 +37,7 @@ def main():
             exit(0)
         if not (args.key and args.section):
             raise Exception("Must supply key and section or -i/--ini_file")
-        config=configparser.ConfigParser()
+        config=configparser.ConfigParser(interpolation=None)
         config.read(config_file)
         v=get_config_value(config,args.section,args.key)
         print(f"{v}")

@@ -1,5 +1,5 @@
--a    enableVocolaTakesUnimacroActions()    (including the two additional options, which have been removed,
--A    disableVocolaTakesUnimacroActions()   -M, -m, -l)
+-a    enableVocolaTakesUniactions()    (including the two additional options, which have been removed,
+-A    disableVocolaTakesUniactions()   -M, -m, -l)
 
 -b    enableVocolaTakesLanguages()
 -B    disableVocolaTakesLanguages()
