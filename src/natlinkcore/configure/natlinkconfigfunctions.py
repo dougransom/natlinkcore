@@ -23,6 +23,7 @@ from pathlib import Path
 import re
 import configparser
 import logging
+import FreeSimpleGUI as sg
 try:
     from natlinkcore import natlinkstatus
 except OSError:
@@ -45,7 +46,7 @@ class NatlinkConfig:
     Changes are written in the config file, from which the path is taken from the loader instance.
     """
     def __init__(self,extra_pip_options=None):        
-
+    
         ## extra_pip_options currently not used...
         self.extra_pip_options = [] if extra_pip_options is None else extra_pip_options
         self.do_pip_with_pre = '--pre' in self.extra_pip_options
@@ -58,7 +59,29 @@ class NatlinkConfig:
         self.documents_path = str(Path.home()/'Documents')
         self.natlinkconfig_path = config.expand_natlink_settingsdir()
         self.AllUscCommands = None # for vocola/dtactions
-        pass
+        self.check_correct_python_version()
+        
+        
+        
+    def check_correct_python_version(self):
+        """the python version of the running instance should be equal to the registry
+           at install of the installer.
+           
+           This one does not work (yet)
+        """
+        cur_python_dir = sys.exec_prefix
+        try:
+            wanted = loader.get_config_info_from_registry("pythonInstallPath")
+        except FileNotFoundError:
+            logging.error(f'Wanted python dir cannot be found from registry,\nCurrent is: {cur_python_dir}')
+            return False
+        if wanted.strip('\\').lower() == sys.exec_prefix.strip('\\').lower():
+            return True
+        logging.error(f"""Current python version doesn't match wanted:
+                 Current: f{cur_python_dir},
+                 Wanted: f{sys.exec_prefix}.
+                 """)
+        return False
     
     def get_check_config_locations(self):
         
@@ -247,14 +270,21 @@ class NatlinkConfig:
     #     self.clearDirectory('UserDirectory')
         
 
-    def setDirectory(self, option, dir_path, section=None):
+    def setDirectory(self, option, dir_path, section=None, text=None):
         """set the directory, specified with "key", to dir_path
         """
         section = section or 'directories'
         if not dir_path:
             logging.info('==== Please specify the wanted directory in Dialog window ====\n')
             prev_path = self.config_get('previous settings', option) or self.documents_path
-            dir_path = tkinter_dialogs.GetDirFromDialog(title=f'Please choose a "{option}"', initialdir=prev_path)
+            if not prev_path:
+                prev_path = r'%userprofile%\Documents'
+            # dir_path = tkinter_dialogs.GetDirFromDialog(title=f'Please choose a "{option}"', initialdir=prev_path)
+            if not text:
+                text = 'Please choose a folder where your ... grammars are/will be located.'
+            dir_path = sg.popup_get_folder(text, title=f'Natlink config, choose a folder',
+                                           initial_folder=prev_path,
+                                           keep_on_top=True)
             if not dir_path:
                 print('No valid directory specified')
                 return
@@ -435,6 +465,16 @@ class NatlinkConfig:
             logging.info('\nWhen you want to upgrade Unimacro, also first clear ("O"), then choose this option ("o") again.\n')
             return False
 
+        text = '\n'.join(['This will enable Unimacro.',
+                         'The unimacro package will be got from pypi.org.',
+                         'Next you are asked to define UnimacroUserDirectory, probably in your Documents directory.',
+                         '\nWhen you want to cancel this actions, choose "No"'])
+        if not arg:
+            answ = sg.popup_yes_no(text, title='Natlink config', keep_on_top=True)
+            if answ != 'Yes':
+                return False
+
+
         uni_dir = self.status.getUnimacroDirectory()
         if uni_dir:
             logging.info('==== instal and/or update unimacro====\n')
@@ -453,8 +493,8 @@ class NatlinkConfig:
                 return False
         self.status.refresh()   # refresh status
         uni_dir = self.status.getUnimacroDirectory()
-
-        self.setDirectory('UnimacroUserDirectory', arg, section='unimacro')
+        text = 'Please specify your UnimacroUserDirectory, where your unimacro config (".ini") files are/will be located'
+        self.setDirectory('UnimacroUserDirectory', arg, section='unimacro', text=text)
         unimacro_user_dir = self.config_get('unimacro', 'unimacrouserdirectory')
         if not unimacro_user_dir:
             logging.warning(f' strange error, installing unimacro seemed to word,'
@@ -1264,4 +1304,6 @@ if __name__ == "__main__":
     _home_path = _nc.home_path
     _natlinkconfig_path = _nc.natlinkconfig_path
     print(f'natlinkconfig_path: {_natlinkconfig_path}')
+    _result = sg.popup_yes_no('PPPPPPPplease answer Yes or No', title="Natlinkconfigfunctions test call")
+    assert _result in ['Yes', 'No']
     pass
