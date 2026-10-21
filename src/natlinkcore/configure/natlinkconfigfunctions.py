@@ -77,10 +77,11 @@ class NatlinkConfig:
             return False
         if wanted.strip('\\').lower() == sys.exec_prefix.strip('\\').lower():
             return True
-        logging.error(f"""Current python version doesn't match wanted:
-                 Current: f{cur_python_dir},
-                 Wanted: f{sys.exec_prefix}.
-                 """)
+        mess = '\n'.join(["Current python version doesn't match wanted:\n",
+                         f'Current: {cur_python_dir}',
+                         f'Wanted: {wanted}'])
+        logging.error(mess)
+        sg.popup(mess, keep_on_top=True, title="Invalid Python Version")
         return False
     
     def get_check_config_locations(self):
@@ -1304,6 +1305,6 @@ if __name__ == "__main__":
     _home_path = _nc.home_path
     _natlinkconfig_path = _nc.natlinkconfig_path
     print(f'natlinkconfig_path: {_natlinkconfig_path}')
-    _result = sg.popup_yes_no('PPPPPPPplease answer Yes or No', title="Natlinkconfigfunctions test call")
-    assert _result in ['Yes', 'No']
+    # _result = sg.popup_yes_no('PPPPPPPplease answer Yes or No', title="Natlinkconfigfunctions test call")
+    # assert _result in ['Yes', 'No']
     pass
