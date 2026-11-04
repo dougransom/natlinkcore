@@ -419,7 +419,7 @@ class NatlinkMain(metaclass=Singleton):
             if not fallback_directory.is_dir():
                 raise OSError(f'NatlinkMain.trigger_load: no directories specified, and fallback_directory is invalid: "{str(fallback_directory)}"')
             mod_paths = self._module_paths_in_dirs([fallback_directory])
-            print(f'Warning, no directories specified for Natlink grammars,\n\tfalling back to default configuration "{str(fallback_directory)}"')
+            print('Warning, no non empty directories for Natlink grammars are specified\n')
         self._pre_load_callback.run()
         self.load_or_reload_modules(mod_paths, force_load=force_load)
         self._post_load_callback.run()
@@ -537,26 +537,31 @@ class NatlinkMain(metaclass=Singleton):
             self.language = 'enx'
 
     def start(self) -> None:
-        self.logger.info(f'Starting natlink loader from config file:\n\t"{self.config.config_path}"')
         nsd = os.getenv('natlink_settingsdir')
         if nsd:
-            self.logger.info('\t(You set environment variable "NATLINK_SETTINGSDIR")')
+            self.logger.info(f'\t(You set environment variable "NATLINK_SETTINGSDIR" to {nsd})')
                 
-
         natlink.active_loader = self
 
         # checking for default config location (probably when no natlinkconfig_gui has been run)
         if self.config.config_path.startswith(str(thisDir)):
-            self.logger.warning('\nOops, you are starting Natlink with the config file "natlink.ini" from the "fallback location".')
-            self.logger.warning('\nThis can be fixed most easily by running the  program *** natlinkconfig_gui *** from the Windows command line.\n')
-            self.logger.warning('The Natlink startup process is stopped now.\nPlease fix your configuration,and then restart Dragon.\n\n')
+            self.logger.warning('\nOops, you are starting Natlink with no valid config file "natlink.ini" found.')
+            self.logger.warning('\nThis can be fixed most easily by running the  program *** Configure Natlink with GUI ***')
+            self.logger.warning('or the program *** Configure Natlink with CLI *** (Command Line Interface)')
+            self.logger.warning('from the Windows Command Prompt.')
+            self.logger.warning('\nThe Natlink startup process is stopped now.\nPlease fix your configuration, and then restart Dragon.\n\n')
             return
-    
+
+        ## after above check now give start message:
+        self.logger.info(f'Starting natlink loader from config file:\n\t"{self.config.config_path}"')
+   
         # checking for absence of directories, can also occur when natlinkconfig_gui has been run, but nothing done
         if not self.config.directories:
             self.logger.warning('\nStarting Natlink, but no directories to load are specified.\n\nPlease add one or more directories in your config file:\n')
-            self.logger.warning('This is most easily done by running the program *** natlinkconfig_gui *** from the Windows command line.')
-            self.logger.warning('\nBut, you can also edit this "natlink.ini" file with Notepad, or your favourite text editor...')
+            self.logger.warning('\nThis can be fixed most easily by running the  program *** Configure Natlink with GUI ***')
+            self.logger.warning('or the program *** Configure Natlink with CLI *** (Command Line Interface)')
+            self.logger.warning('from the Windows Command Prompt.')
+            self.logger.warning('\nBut, you can also edit the "natlink.ini" file with Notepad, or your favourite text editor...')
             self.logger.warning('\nThe Natlink startup process is stopped now.\nPlease fix your configuration, and then restart Dragon.\n\n')
             return
         
